@@ -3,4 +3,6 @@
 
 policy is all on worker side
 
-client really cheap 
+client really cheap
+
+priority:  low number is higher priority.  0 is highest.
