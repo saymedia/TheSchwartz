@@ -8,7 +8,7 @@ CREATE TABLE job (
         run_after
         grabbed_until
         priority
-        coalescing
+        setname
         UNIQUE(uniqkey),
 )
 
@@ -28,5 +28,6 @@ CREATE TABLE error (
 CREATE TABLE exitstatus (
         jobid
         status
+        completition_time
         delete_after
 )
