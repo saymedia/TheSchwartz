@@ -1,13 +1,18 @@
-# -*-perl-*-
+# $Id$
 
 use strict;
 use warnings;
+
+require 't/lib/db-common.pl';
+
 use TheSchwartz;
-use Test::More 'no_plan';
+use Test::More tests => 13;
+
+setup_dbs('t/schema-sqlite.sql' => [ 'ts1' ]);
 
 my $client = TheSchwartz->new(databases => [
                                             {
-                                                dsn  => "dbi:SQLite:dbname=ts1.sqlite",
+                                                dsn  => dsn_for('ts1'),
                                                 user => "",
                                                 pass => "",
                                             },
@@ -15,7 +20,7 @@ my $client = TheSchwartz->new(databases => [
 my $handle;
 
 $handle = $client->insert("feedmajor", scoops => 2, with => ['cheese','love']);
-ok($handle, "got a job handle");
+isa_ok $handle, 'TheSchwartz::JobHandle', "inserted job";
 is($handle->is_pending, "pending", "job is still pending");
 is($handle->exit_status, undef, "job hasn't exitted yet");
 
@@ -23,25 +28,31 @@ is($handle->exit_status, undef, "job hasn't exitted yet");
 my $hstr = $handle->as_string;    # <digestofdsn>-<jobid>
 ok($hstr, "handle stringifies");
 
-# getting a handle object ack
+my $job = $handle->job;
+isa_ok $job, 'TheSchwartz::Job';
+is $job->funcname, 'feedmajor', 'handle->job gives us the right job';
+
+# getting a handle object back
 my $hand2 = $client->handle_from_string($hstr);
 ok($hand2, "handle recreated from stringified version");
 is($handle->is_pending, "pending", "job is still pending");
 is($handle->exit_status, undef, "job hasn't exitted yet");
 
+$job = $handle->job;
+isa_ok $job, 'TheSchwartz::Job';
+is $job->funcname, 'feedmajor', 'recreated handle gives us the right job';
 
-my $job = TheSchartz::Job->new(
+$job = TheSchwartz::Job->new(
                                funcname => 'feedmajor',
-                               run_at   => time() + 60,
+                               run_after=> time() + 60,
                                priority => 7,
                                arg      => { scoops => 2, with => ['cheese','love'] },
                                coalesce => 'major',
-                               jobid    => rand(),
+                               jobid    => int rand(5000),
                                );
    ok($job);
 
 $handle = $client->insert($job);
-   ok($handle);
+isa_ok $handle, 'TheSchwartz::JobHandle';
 
-
-
+teardown_dbs('ts1');

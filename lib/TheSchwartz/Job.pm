@@ -1,56 +1,50 @@
-package TheSchwartz::Job;
-use Data::ObjectDriver::Driver::Partition;
+# $Id$
 
+package TheSchwartz::Job;
+use strict;
 use base qw( Data::ObjectDriver::BaseObject );
+
+use Storable ();
+use TheSchwartz::JobHandle;
+
 __PACKAGE__->install_properties({
-               columns     => [qw(jobid funcname args uniqkey insert_time
-                                  run_after grabbed_util priority setname)],
+               columns     => [qw(jobid funcname arg uniqkey insert_time
+                                  run_after grabbed_until priority coalesce)],
                datasource  => 'job',
                primary_key => 'jobid',
-               driver      => Data::ObjectDriver::Driver::Partition->new(get_driver => \&get_driver),
            });
 
-sub driver {
-    my $self = shift;
-    my $driver =$self->client->driver_for($self->{uniqkey});
-    $self->{_lastdriver} = $driver;
-    return $driver;
-}
-
-sub lookup {
-    my ($class, $handle) = @_;
-    my ($hashdsn, $jobid) = split(/\-/, $handle);
-    my @clients = TheSchwartz->clients;
-    foreach my $c (@clients) {
-        my @dsn = $c->dsns;
-
+__PACKAGE__->add_trigger(pre_save => sub {
+    my($job) = @_;
+    if (my $arg = $job->arg) {
+        $job->arg(Storable::nfreeze($arg));
     }
+});
+
+sub new_from_array {
+    my $class = shift;
+    my(@arg) = @_;
+    $class->new(
+            funcname => $arg[0],
+            arg      => $arg[1],
+        );
 }
 
-sub get_driver {
-
+sub new {
+    my $class = shift;
+    my(%param) = @_;
+    my $job = $class->SUPER::new;
+    if (my $arg = $param{arg}) {
+        if (ref($arg) eq 'SCALAR') {
+            $param{arg} = Storable::thaw($$arg);
+        } elsif (!ref($arg)) {
+            $param{arg} = Storable::thaw($arg);
+        }
+    }
+    for my $key (keys %param) {
+        $job->$key($param{$key});
+    }
+    $job;
 }
 
-                                   get_driver => \&get_driver,
-                               ),
-
-
-
-
-sub new
-{ }
-
-package TheSchwartz;
-sub lookup_job {
-    my $client = shift;
-    my($handle) = @_;
-    my($hashdsn, $jobid) = split /\-/, $handle;
-    my $driver = $client->driver_for($hashdsn);
-    my $job = $driver->lookup('TheSchwartz::Job' => $jobid);
-    return $job;
-}
-
-sub driver_for {
-    my $client = shift;
-
-}
+1;
