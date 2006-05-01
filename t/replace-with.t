@@ -1,0 +1,71 @@
+# $Id$
+# -*-perl-*-
+
+use strict;
+use warnings;
+
+require 't/lib/db-common.pl';
+
+use TheSchwartz;
+use Test::More tests => 8;
+
+setup_dbs('t/schema-sqlite.sql' => [ 'ts1' ]);
+
+my $client = TheSchwartz->new(databases => [
+                                            {
+                                                dsn  => dsn_for('ts1'),
+                                                user => "",
+                                                pass => "",
+                                            },
+                                            ]);
+
+my $handle = $client->insert("Worker::Foo", { cluster => 'all'});
+ok($handle);
+
+my $job = Worker::Foo->grab_job($client);
+ok($job, "no addition jobs to be grabbed");
+
+Worker::Foo->work_safely($job);
+
+$client->can("Worker::Foo");
+$client->work_until_done;  # should process 5 jobs.
+
+teardown_dbs('ts1');
+
+############################################################################
+package Worker::Foo;
+use base 'TheSchwartz::Worker';
+
+sub work {
+    my ($class, $job) = @_;
+    my $args = $job->arg;
+
+    if ($args->{cluster} eq "all") {
+        ok(1, "got the expand job");
+        my @jobs;
+        for (1..5) {
+            push $job, $client->insert("Worker::Foo", { cluster => $_ });
+        }
+        # which does a $job->completed iff all the @jobs, in one txn, insert
+        # on the same database that $job was on.  and it should DIE if the
+        # transaction fails, just so txn flow doesn't proceed on accident.
+        # then work_safely with catch the die and call $job->failed
+        $job->replace_with(@jobs);
+        return;
+    }
+
+    if ($args->{cluster} =~ /^\d+$/) {
+        ok(1, "got job $args->{cluster}");
+        $job->completed;
+        return;
+    }
+
+    # if anything were to fall through the bottom of here without
+    # first calling fail/completed/replace_with, or dying, then the
+    # work_safely wrapper should treat it as a "fall-through" failure
+    # and log it, doing the whole retries/delay thing as with a
+    # regular die.
+}
+
+sub grab_for { 30 }
+
