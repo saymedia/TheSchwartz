@@ -2,7 +2,7 @@
 
 use strict;
 use warnings;
-use Test::More tests => 18;
+use Test::More tests => 19;
 
 use TheSchwartz;
 use Storable;
@@ -39,6 +39,12 @@ my $job6 = TheSchwartz::Job->new(
                                  jobid    => int(rand()*5000),
                                  );
 isa_ok $job6, 'TheSchwartz::Job';
+
+# second arg can also be an arrayref
+my $job_a1  = TheSchwartz::Job->new_from_array("feedmajor", [ 'cheese', 'water', 'beer' ]);
+my $job_a2  = TheSchwartz::Job->new(funcname => "feedmajor",
+                                    arg      => [ 'cheese', 'water', 'beer' ]);
+is_deeply($job_a1->column_values, $job_a2->column_values, "ctors with arrayrefs match");
 
 my $jobbad = eval { TheSchwartz::Job->new(
                                           funcname => 'feeddog',

@@ -34,7 +34,7 @@ my $client = TheSchwartz->new(databases => [
     is_deeply($args, { numbers => [1, 2] }, "got our args back");
 
     # insert a dummy job to test that next grab ignors it
-    ok($client->insert("dummy"));
+    ok($client->insert("dummy", [1,2,3]));
 
     # verify no more jobs can be grabbed of this type, even though
     # we haven't done the first one
