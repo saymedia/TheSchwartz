@@ -6,6 +6,7 @@ use base qw( Class::Accessor::Fast );
 
 __PACKAGE__->mk_accessors(qw( dsn_hashed jobid client ));
 
+use TheSchwartz::Error;
 use TheSchwartz::Job;
 
 sub new_from_string {
@@ -25,7 +26,9 @@ sub as_string {
 
 sub job {
     my $handle = shift;
-    return $handle->client->lookup_job($handle->as_string);
+    my $job = $handle->client->lookup_job($handle->as_string);
+    $job->handle($handle);
+    return $job;
 }
 
 sub status {
@@ -34,5 +37,19 @@ sub status {
 sub is_pending { 'pending' }
 
 sub exit_status { }
+
+sub failure_log {
+    my $handle = shift;
+    my $driver = $handle->client->driver_for($handle->dsn_hashed);
+    my @failures = $driver->search('TheSchwartz::Error' =>
+            { jobid => $handle->jobid },
+        );
+    return map { $_->message } @failures;
+}
+
+sub failures {
+    my $handle = shift;
+    return scalar $handle->failure_log;
+}
 
 1;

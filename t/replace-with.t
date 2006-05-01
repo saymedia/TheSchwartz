@@ -27,7 +27,7 @@ ok($job, "no addition jobs to be grabbed");
 
 Worker::Foo->work_safely($job);
 
-$client->can("Worker::Foo");
+$client->can_do("Worker::Foo");
 $client->work_until_done;  # should process 5 jobs.
 
 teardown_dbs('ts1');
@@ -44,7 +44,7 @@ sub work {
         ok(1, "got the expand job");
         my @jobs;
         for (1..5) {
-            push $job, $client->insert("Worker::Foo", { cluster => $_ });
+            push @jobs, $client->insert("Worker::Foo", { cluster => $_ });
         }
         # which does a $job->completed iff all the @jobs, in one txn, insert
         # on the same database that $job was on.  and it should DIE if the

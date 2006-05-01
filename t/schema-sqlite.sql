@@ -10,3 +10,8 @@ CREATE TABLE job (
         coalesce        VARCHAR(255),
         UNIQUE(uniqkey)
 );
+
+CREATE TABLE error(
+        jobid           INTEGER NOT NULL,
+        message         VARCHAR(255) NOT NULL
+);

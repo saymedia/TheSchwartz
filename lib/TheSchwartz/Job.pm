@@ -6,6 +6,7 @@ use base qw( Data::ObjectDriver::BaseObject );
 
 use Carp qw( croak );
 use Storable ();
+use TheSchwartz::Error;
 use TheSchwartz::JobHandle;
 
 __PACKAGE__->install_properties({
@@ -19,6 +20,13 @@ __PACKAGE__->add_trigger(pre_save => sub {
     my($job) = @_;
     if (my $arg = $job->arg) {
         $job->arg(Storable::nfreeze($arg));
+    }
+});
+
+__PACKAGE__->add_trigger(post_load => sub {
+    my($job) = @_;
+    if (my $arg = $job->arg) {
+        $job->arg(Storable::thaw($arg));
     }
 });
 
@@ -47,6 +55,26 @@ sub new {
         $job->$key($param{$key});
     }
     return $job;
+}
+
+sub handle {
+    my $job = shift;
+    if (@_) {
+        $job->{__handle} = $_[0];
+    }
+    return $job->{__handle};
+}
+
+sub add_failure {
+    my $job = shift;
+    my($msg) = @_;
+    my $error = TheSchwartz::Error->new;
+    $error->jobid($job->jobid);
+    $error->message($msg);
+    my $handle = $job->handle;
+    my $driver = $handle->client->driver_for($handle->dsn_hashed);
+    $driver->insert($error);
+    return $error;
 }
 
 1;

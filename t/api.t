@@ -20,7 +20,7 @@ my $client = TheSchwartz->new(databases => [
                                             ]);
 my $handle;
 
-$handle = $client->insert("feedmajor", scoops => 2, with => ['cheese','love']);
+$handle = $client->insert("feedmajor", { scoops => 2, with => ['cheese','love'] });
 isa_ok $handle, 'TheSchwartz::JobHandle', "inserted job";
 is($handle->is_pending, "pending", "job is still pending");
 is($handle->exit_status, undef, "job hasn't exitted yet");

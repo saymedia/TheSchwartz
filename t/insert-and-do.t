@@ -7,7 +7,7 @@ use warnings;
 require 't/lib/db-common.pl';
 
 use TheSchwartz;
-use Test::More tests => 13;
+use Test::More tests => 14;
 
 setup_dbs('t/schema-sqlite.sql' => [ 'ts1' ]);
 
@@ -29,8 +29,8 @@ my $client = TheSchwartz->new(databases => [
 {
     my $job = Worker::Addition->grab_job($client);
     isa_ok $job, 'TheSchwartz::Job';
-    my $args = $job->args;
-    is(ref $job, "HASH");  # thawed it for us
+    my $args = $job->arg;
+    is(ref $args, "HASH");  # thawed it for us
     is_deeply($args, { numbers => [1, 2] }, "got our args back");
 
     # insert a dummy job to test that next grab ignors it
@@ -80,7 +80,7 @@ my $client = TheSchwartz->new(databases => [
     Worker::Division->work_safely($job);
 
     is($handle->failures, 1, "job has failed once");
-    like(join('', $handle->failure_log), /Illegal division by zero/, "noted that we divided by zero");
+    like(join('', $handle->failure_log), qr/Illegal division by zero/, "noted that we divided by zero");
 
 
 }
@@ -113,9 +113,9 @@ sub dict { \%internal_dict }
 
 sub work {
     my ($class, $job) = @_;
-    my $args = $job->args;
+    my $args = $job->arg;
     %internal_dict = (%internal_dict, %$args);
-    retrn 1;
+    return 1;
 }
 
 sub grab_for { 10 }
@@ -126,7 +126,7 @@ use base 'TheSchwartz::Worker';
 
 sub work {
     my ($class, $job) = @_;
-    my $args = $job->args;
+    my $args = $job->arg;
 
     my $ans = $args->{n} / $args->{d};  # throw it away, just here to die on d==0
 
