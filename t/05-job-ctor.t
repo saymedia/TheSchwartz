@@ -2,7 +2,7 @@
 
 use strict;
 use warnings;
-use Test::More tests => 12;
+use Test::More tests => 18;
 
 use TheSchwartz;
 use Storable;
@@ -44,5 +44,20 @@ my $jobbad = eval { TheSchwartz::Job->new(
                                           funcname => 'feeddog',
                                           run_atter   => time() + 60,  # [sic] typo
                                           ) };
+ok(!$jobbad, "no bad job");
+ok($@,       "error creating job with bad argument");
+
+# can't have multiple non-ref args
+$jobbad = eval { TheSchwartz::Job->new_from_array("feeddog", "scalar1", "scalar2") };
+ok(!$jobbad, "no bad job");
+ok($@,       "error creating job with bad argument");
+
+# can't have multiple non-ref args, even if first is scalarref
+$jobbad = eval { TheSchwartz::Job->new_from_array("feeddog", \ "scalar1", "scalar2") };
+ok(!$jobbad, "no bad job");
+ok($@,       "error creating job with bad argument");
+
+# can't have multiple non-ref args, even if first is hashrf
+$jobbad = eval { TheSchwartz::Job->new_from_array("feeddog", { with => 'poison' }, { extra => 'arg' }); };
 ok(!$jobbad, "no bad job");
 ok($@,       "error creating job with bad argument");
