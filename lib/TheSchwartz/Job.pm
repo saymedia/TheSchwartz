@@ -4,6 +4,7 @@ package TheSchwartz::Job;
 use strict;
 use base qw( Data::ObjectDriver::BaseObject );
 
+use Carp qw( croak );
 use Storable ();
 use TheSchwartz::JobHandle;
 
@@ -24,6 +25,7 @@ __PACKAGE__->add_trigger(pre_save => sub {
 sub new_from_array {
     my $class = shift;
     my(@arg) = @_;
+    croak "usage: new_from_array(funcname, arg)" unless @arg == 2;
     return $class->new(
             funcname => $arg[0],
             arg      => $arg[1],
