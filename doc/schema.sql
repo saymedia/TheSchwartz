@@ -25,7 +25,7 @@ CREATE TABLE error (
 
 
 CREATE TABLE exitstatus (
-        jobid           BIGINT UNSIGNED NOT NULL,
+        jobid           BIGINT UNSIGNED PRIMARY KEY NOT NULL,
         status          SMALLINT UNSIGNED,
         completion_time INTEGER UNSIGNED,
         delete_after    INTEGER UNSIGNED

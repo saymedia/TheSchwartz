@@ -52,6 +52,7 @@ sub new {
             $param{arg} = Storable::thaw($arg);
         }
     }
+    $param{run_after} ||= time;
     for my $key (keys %param) {
         $job->$key($param{$key});
     }
@@ -80,16 +81,24 @@ sub add_failure {
     my($msg) = @_;
     my $error = TheSchwartz::Error->new;
     $error->jobid($job->jobid);
-    $error->message($msg);
+    $error->message($msg || '');
     $job->driver->insert($error);
     return $error;
 }
 
+sub exit_status { shift->handle->exit_status }
+sub failure_log { shift->handle->failure_log }
+sub failures    { shift->handle->failures    }
+
 sub set_exit_status {
     my $job = shift;
     my($exit) = @_;
+    my $class = $job->funcname;
+    my $secs = $class->keep_exit_status_for or return;
     my $status = TheSchwartz::ExitStatus->new;
     $status->jobid($job->jobid);
+    $status->completion_time(time);
+    $status->delete_after($status->completion_time + $secs);
     $status->status($exit);
     $job->driver->insert($status);
     return $status;
@@ -103,6 +112,25 @@ sub completed {
 
 sub failed {
     my $job = shift;
+    my($msg) = @_;
+
+    ## Mark the failure in the error table.
+    $job->add_failure($msg);
+
+    ## If this job class specifies that jobs should be retried,
+    ## update the run_after if necessary, but keep the job around.
+    my $class = $job->funcname;
+    my $failures = $job->failures;
+    if ($class->max_retries >= $failures) {
+        if (my $delay = $class->retry_delay($failures)) {
+            $job->run_after(time + $delay);
+            $job->driver->update($job);
+        }
+    } else {
+## TODO how to get the proper exit status?
+        $job->set_exit_status(1);
+        $job->driver->remove($job);
+    }
 }
 
 sub replace_with {

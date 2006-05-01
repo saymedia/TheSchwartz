@@ -6,7 +6,7 @@ use base qw( Class::Accessor::Fast );
 
 __PACKAGE__->mk_accessors(qw( dsn_hashed jobid client ));
 
-use TheSchwartz::Error;
+use TheSchwartz::ExitStatus;
 use TheSchwartz::Job;
 
 sub new_from_string {
@@ -24,24 +24,37 @@ sub as_string {
     return join '-', $handle->dsn_hashed, $handle->jobid;
 }
 
+sub driver {
+    my $handle = shift;
+    unless (exists $handle->{__driver}) {
+        $handle->{__driver} = $handle->client->driver_for($handle->dsn_hashed);
+    }
+    return $handle->{__driver};
+}
+
 sub job {
     my $handle = shift;
-    my $job = $handle->client->lookup_job($handle->as_string);
+    my $job = $handle->client->lookup_job($handle->as_string) or return;
     $job->handle($handle);
     return $job;
 }
 
-sub status {
+sub is_pending {
+    my $handle = shift;
+    return $handle->job ? 1 : 0;
 }
 
-sub is_pending { 'pending' }
-
-sub exit_status { }
+sub exit_status {
+    my $handle = shift;
+    my $status = $handle->driver->lookup(
+            'TheSchwartz::ExitStatus' => $handle->jobid
+        ) or return;
+    return $status->status;
+}
 
 sub failure_log {
     my $handle = shift;
-    my $driver = $handle->client->driver_for($handle->dsn_hashed);
-    my @failures = $driver->search('TheSchwartz::Error' =>
+    my @failures = $handle->driver->search('TheSchwartz::Error' =>
             { jobid => $handle->jobid },
         );
     return map { $_->message } @failures;

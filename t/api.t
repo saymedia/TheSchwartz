@@ -22,7 +22,7 @@ my $handle;
 
 $handle = $client->insert("feedmajor", { scoops => 2, with => ['cheese','love'] });
 isa_ok $handle, 'TheSchwartz::JobHandle', "inserted job";
-is($handle->is_pending, "pending", "job is still pending");
+is($handle->is_pending, 1, "job is still pending");
 is($handle->exit_status, undef, "job hasn't exitted yet");
 
 # to give to javascript, perl, etc...
@@ -36,7 +36,7 @@ is $job->funcname, 'feedmajor', 'handle->job gives us the right job';
 # getting a handle object back
 my $hand2 = $client->handle_from_string($hstr);
 ok($hand2, "handle recreated from stringified version");
-is($handle->is_pending, "pending", "job is still pending");
+is($handle->is_pending, 1, "job is still pending");
 is($handle->exit_status, undef, "job hasn't exitted yet");
 
 $job = $handle->job;

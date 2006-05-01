@@ -16,6 +16,10 @@ sub handles {
     return $_[0];
 }
 
+sub keep_exit_status_for { 0 }
+sub max_retries { 0 }
+sub retry_delay { 0 }
+
 sub work_safely {
     my $worker = shift;
     my($job) = @_;

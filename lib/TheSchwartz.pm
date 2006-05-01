@@ -63,9 +63,10 @@ sub lookup_jobs_by_function {
     my @jobs;
     for my $hashdsn (keys %{ $client->{databases} }) {
         my $driver = $client->driver_for($hashdsn);
-        my @j = $driver->search('TheSchwartz::Job' =>
-                { funcname => $funcname },
-            );
+        my @j = $driver->search('TheSchwartz::Job' => {
+                funcname  => $funcname,
+                run_after => { op => '<=', value => time },
+            });
         for my $job (@j) {
             my $handle = TheSchwartz::JobHandle->new({
                     dsn_hashed => $hashdsn,

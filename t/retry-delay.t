@@ -7,7 +7,7 @@ use warnings;
 require 't/lib/db-common.pl';
 
 use TheSchwartz;
-use Test::More 'no_plan';
+use Test::More tests => 8;
 
 setup_dbs('t/schema-sqlite.sql' => [ 'ts1' ]);
 
@@ -43,9 +43,11 @@ my $client = TheSchwartz->new(databases => [
     ok($job, "got the job back");
 
     Worker::CompleteEventually->work_safely($job);
-    ok(! $handle->is_pending, "job has exitted");
+    ok(! $handle->is_pending, "job has exited");
     is($handle->exit_status, 0, "job succeeded");
 }
+
+teardown_dbs('ts1');
 
 ############################################################################
 package Worker::CompleteEventually;
@@ -67,6 +69,7 @@ sub keep_exit_status_for { 20 }  # keep exit status for 20 seconds after on_comp
 sub max_retries { 2 }
 
 sub retry_delay {
+    my $class = shift;
     my $fails = shift;
     return [undef,2,0]->[$fails];  # fails 2 seconds first time, then immediately
 }
