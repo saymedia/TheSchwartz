@@ -27,7 +27,7 @@ my $client = TheSchwartz->new(databases => [
 
 # let's do some work.  the tedious way, specifying which class should grab a job
 {
-    my $job = Worker::Addition->grab_job;
+    my $job = Worker::Addition->grab_job($client);
     isa_ok $job, 'TheSchwartz::Job';
     my $args = $job->args;
     is(ref $job, "HASH");  # thawed it for us
@@ -38,7 +38,7 @@ my $client = TheSchwartz->new(databases => [
 
     # verify no more jobs can be grabbed of this type, even though
     # we haven't done the first one
-    my $job2 = Worker::Addition->grab_job;
+    my $job2 = Worker::Addition->grab_job($client);
     ok(!$job2, "no addition jobs to be grabbed");
 
     my $rv = eval { Worker::Addition->work($job); };
@@ -72,7 +72,7 @@ my $client = TheSchwartz->new(databases => [
     my $handle = $client->insert("Worker::Division", { n => 5, d => 0 });
     ok($handle);
 
-    my $job = Worker::Division->grab_job;
+    my $job = Worker::Division->grab_job($client);
     isa_ok $job, 'TheSchwartz::Job';
 
     # wrapper around 'work' implemented in the base class which runs work in
