@@ -23,7 +23,7 @@ sub new {
 
     $client->hash_databases($databases);
 
-    $client;
+    return $client;
 }
 
 sub hash_databases {
@@ -39,7 +39,7 @@ sub driver_for {
     my $client = shift;
     my($hashdsn) = @_;
     my $db = $client->{databases}{$hashdsn};
-    Data::ObjectDriver::Driver::DBI->new(
+    return Data::ObjectDriver::Driver::DBI->new(
             dsn      => $db->{dsn},
             username => $db->{user},
             password => $db->{pass},
@@ -50,7 +50,7 @@ sub lookup_job {
     my $client = shift;
     my $handle = $client->handle_from_string(@_);
     my $driver = $client->driver_for($handle->dsn_hashed);
-    $driver->lookup('TheSchwartz::Job' => $handle->jobid);
+    return $driver->lookup('TheSchwartz::Job' => $handle->jobid);
 }
 
 sub insert {
@@ -64,7 +64,7 @@ sub insert {
     my $driver = $client->driver_for($hashdsn);
     $driver->insert($job);
 
-    TheSchwartz::JobHandle->new({
+    return TheSchwartz::JobHandle->new({
             dsn_hashed => $hashdsn,
             client     => $client,
             jobid      => $job->jobid
@@ -75,7 +75,7 @@ sub handle_from_string {
     my $client = shift;
     my $handle = TheSchwartz::JobHandle->new_from_string(@_);
     $handle->client($client);
-    $handle;
+    return $handle;
 }
 
 1;

@@ -24,7 +24,7 @@ __PACKAGE__->add_trigger(pre_save => sub {
 sub new_from_array {
     my $class = shift;
     my(@arg) = @_;
-    $class->new(
+    return $class->new(
             funcname => $arg[0],
             arg      => $arg[1],
         );
@@ -44,7 +44,7 @@ sub new {
     for my $key (keys %param) {
         $job->$key($param{$key});
     }
-    $job;
+    return $job;
 }
 
 1;
