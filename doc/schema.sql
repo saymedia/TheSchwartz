@@ -3,30 +3,30 @@ CREATE TABLE job (
         funcname        VARCHAR(255) NOT NULL,
         arg             MEDIUMBLOB,
         uniqkey         VARCHAR(255) NULL,
-        insert_time     DATETIME,
-        run_after       DATETIME,
-        grabbed_until   DATETIME,
+        insert_time     INTEGER UNSIGNED,
+        run_after       INTEGER UNSIGNED,
+        grabbed_until   INTEGER UNSIGNED,
         priority        SMALLINT UNSIGNED,
         coalesce        VARCHAR(255),
         UNIQUE(uniqkey)
 );
 
 CREATE TABLE note (
-        jobid,
+        jobid           BIGINT UNSIGNED NOT NULL,
         notekey,
         value
-)
+);
 
 
 CREATE TABLE error (
-
-
-)
+        jobid           BIGINT UNSIGNED NOT NULL,
+        message         VARCHAR(255) NOT NULL
+);
 
 
 CREATE TABLE exitstatus (
-        jobid
-        status
-        completition_time
-        delete_after
-)
+        jobid           BIGINT UNSIGNED NOT NULL,
+        status          SMALLINT UNSIGNED,
+        completion_time INTEGER UNSIGNED,
+        delete_after    INTEGER UNSIGNED
+);

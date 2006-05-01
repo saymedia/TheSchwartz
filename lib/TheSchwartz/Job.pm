@@ -7,6 +7,7 @@ use base qw( Data::ObjectDriver::BaseObject );
 use Carp qw( croak );
 use Storable ();
 use TheSchwartz::Error;
+use TheSchwartz::ExitStatus;
 use TheSchwartz::JobHandle;
 
 __PACKAGE__->install_properties({
@@ -65,16 +66,67 @@ sub handle {
     return $job->{__handle};
 }
 
+sub driver {
+    my $job = shift;
+    unless (exists $job->{__driver}) {
+        my $handle = $job->handle;
+        $job->{__driver} = $handle->client->driver_for($handle->dsn_hashed);
+    }
+    return $job->{__driver};
+}
+
 sub add_failure {
     my $job = shift;
     my($msg) = @_;
     my $error = TheSchwartz::Error->new;
     $error->jobid($job->jobid);
     $error->message($msg);
-    my $handle = $job->handle;
-    my $driver = $handle->client->driver_for($handle->dsn_hashed);
-    $driver->insert($error);
+    $job->driver->insert($error);
     return $error;
+}
+
+sub set_exit_status {
+    my $job = shift;
+    my($exit) = @_;
+    my $status = TheSchwartz::ExitStatus->new;
+    $status->jobid($job->jobid);
+    $status->status($exit);
+    $job->driver->insert($status);
+    return $status;
+}
+
+sub completed {
+    my $job = shift;
+    $job->set_exit_status(0);
+    $job->driver->remove($job);
+}
+
+sub failed {
+    my $job = shift;
+}
+
+sub replace_with {
+    my $job = shift;
+    my(@jobs) = @_;
+
+    ## The new jobs @jobs should be inserted into the same database as $job,
+    ## which they're replacing. So get a driver for the database that $job
+    ## belongs to.
+    my $driver = $job->driver;
+
+    ## Start a transaction.
+    $driver->begin_work;
+
+    ## Insert the new jobs.
+    for my $j (@jobs) {
+        $driver->insert($j);
+    }
+
+    ## Mark the original job as completed successfully.
+    $job->completed;
+
+    ## Looks like it's all ok, so commit.
+    $driver->commit;
 }
 
 1;

@@ -36,6 +36,8 @@ teardown_dbs('ts1');
 package Worker::Foo;
 use base 'TheSchwartz::Worker';
 
+use Test::More;  ## Import test methods.
+
 sub work {
     my ($class, $job) = @_;
     my $args = $job->arg;
@@ -44,7 +46,9 @@ sub work {
         ok(1, "got the expand job");
         my @jobs;
         for (1..5) {
-            push @jobs, $client->insert("Worker::Foo", { cluster => $_ });
+            push @jobs, TheSchwartz::Job->new_from_array("Worker::Foo",
+                    { cluster => $_ }
+                );
         }
         # which does a $job->completed iff all the @jobs, in one txn, insert
         # on the same database that $job was on.  and it should DIE if the
