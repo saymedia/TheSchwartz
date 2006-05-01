@@ -34,7 +34,7 @@ my $client = TheSchwartz->new(databases => [
     is_deeply($args, { numbers => [1, 2] }, "got our args back");
 
     # insert a dummy job to test that next grab ignors it
-    ok($client->insert("divide", { n => 5, d => 0 }));
+    ok($client->insert("dummy"));
 
     # verify no more jobs can be grabbed of this type, even though
     # we haven't done the first one
@@ -64,6 +64,26 @@ my $client = TheSchwartz->new(databases => [
               }, "all jobs got completed");
 }
 
+# errors
+{
+    $client->reset_abilities;           # now it, as a worker, can't do anything
+    $client->can("Worker::Division");   # now it can only do one thing
+
+    my $handle = $client->insert("Worker::Division", { n => 5, d => 0 });
+    ok($handle);
+
+    my $job = Worker::Division->grab_job;
+    isa_ok $job, 'TheSchwartz::Job';
+
+    # wrapper around 'work' implemented in the base class which runs work in
+    # eval and notes a failure (with backoff) if job died.
+    Worker::Division->work_safely($job);
+
+    is($handle->failures, 1, "job has failed once");
+    like(join('', $handle->failure_log), /Illegal division by zero/, "noted that we divided by zero");
+
+
+}
 
 teardown_dbs('ts1');
 
@@ -89,6 +109,8 @@ package Worker::MergeInternalDict;
 use base 'TheSchwartz::Worker';
 my %internal_dict;
 
+sub dict { \%internal_dict }
+
 sub work {
     my ($class, $job) = @_;
     my $args = $job->args;
@@ -97,3 +119,26 @@ sub work {
 }
 
 sub grab_for { 10 }
+
+############################################################################
+package Worker::Division;
+use base 'TheSchwartz::Worker';
+
+sub work {
+    my ($class, $job) = @_;
+    my $args = $job->args;
+
+    my $ans = $args->{n} / $args->{d};  # throw it away, just here to die on d==0
+
+    $job->set_exit_status(1);
+    $job->completed;
+}
+
+sub keep_exit_status_for { 20 }  # keep exit status for 20 seconds after on_complete
+
+sub grab_for { 10 }
+
+sub max_retries { 1 }
+
+sub retry_delay { my $fails = shift; return 2 ** $fails; }
+
