@@ -55,9 +55,10 @@ sub lookup_job {
 
 sub insert {
     my $client = shift;
-    my($job) = @_;
+    my $job = shift;
     unless (ref($job) eq 'TheSchwartz::Job') {
-        $job = TheSchwartz::Job->new_from_array($job);
+        my %arg = @_;
+        $job = TheSchwartz::Job->new_from_array($job, \%arg);
     }
 ## TODO how to choose a database?
     my $hashdsn = (keys %{ $client->{databases} })[0];
