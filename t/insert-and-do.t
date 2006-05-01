@@ -54,7 +54,7 @@ my $client = TheSchwartz->new(databases => [
 
 # work the easier way
 {
-    $client->can("Worker::MergeInternalDict");  # single arg form:  say we can do this job name, which is also its package
+    $client->can_do("Worker::MergeInternalDict");  # single arg form:  say we can do this job name, which is also its package
     $client->work_until_done;                   # blocks until all databases are empty
     is_deeply(Worker::MergeInternalDict->dict,
               {
@@ -67,7 +67,7 @@ my $client = TheSchwartz->new(databases => [
 # errors
 {
     $client->reset_abilities;           # now it, as a worker, can't do anything
-    $client->can("Worker::Division");   # now it can only do one thing
+    $client->can_do("Worker::Division");   # now it can only do one thing
 
     my $handle = $client->insert("Worker::Division", { n => 5, d => 0 });
     ok($handle);
