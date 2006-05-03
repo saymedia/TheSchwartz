@@ -57,28 +57,63 @@ sub lookup_job {
     return $job;
 }
 
-sub lookup_jobs_by_function {
+sub find_job_for_workers {
     my $client = shift;
-    my($funcname) = @_;
-    my @jobs;
+    my($worker_classes) = @_;
+    my %functions = map { $_->handles => $_ } @$worker_classes;
+
     for my $hashdsn (keys %{ $client->{databases} }) {
         my $driver = $client->driver_for($hashdsn);
-        my @j = $driver->search('TheSchwartz::Job' => {
-                funcname  => $funcname,
-                run_after => { op => '<=', value => time },
+
+        ## Start a transaction, because if we find a job we'll need to
+        ## update it.
+        $driver->begin_work;
+
+        ## Search for jobs in this database where:
+        ## 1. funcname is in the list of abilities this $client supports;
+        ## 2. the job is scheduled to be run (run_after is in the past);
+        ## 3. no one else is working on the job (grabbed_until is NULL or
+        ##    in the past).
+        my($job) = $driver->search('TheSchwartz::Job' => {
+                funcname      => [ keys %functions ],
+                run_after     => { op => '<=', value => time },
+                grabbed_until => [
+                    \'IS NULL',
+                    { op => '<=', value => time },
+                ],
             });
-        for my $job (@j) {
+
+        if ($job) {
+            ## Got a job!
+            ## Update the job's grabbed_until column so that
+            ## no one else takes it.
+            my $worker_class = $functions{$job->funcname};
+            $job->grabbed_until(time + $worker_class->grab_for);
+
+            ## Update the job in the database, and end the transaction.
+            $driver->update($job);
+            $driver->commit;
+
+            ## Now prepare the job, and return it.
             my $handle = TheSchwartz::JobHandle->new({
                     dsn_hashed => $hashdsn,
                     jobid      => $job->jobid,
                 });
             $handle->client($client);
             $job->handle($handle);
+            return $job;
         }
-        return $j[0] unless wantarray;
-        push @jobs, @j;
+
+        ## If we didn't find a job, we need to commit to end the
+        ## transaction in this database.
+        $driver->commit;
     }
-    return @jobs;
+}
+
+sub choose_database {
+    my $client = shift;
+    my @dsns = keys %{ $client->{databases} };
+    $dsns[rand @dsns];
 }
 
 sub insert {
@@ -87,8 +122,7 @@ sub insert {
     unless (ref($job) eq 'TheSchwartz::Job') {
         $job = TheSchwartz::Job->new_from_array($job, $_[1]);
     }
-## TODO how to choose a database?
-    my $hashdsn = (keys %{ $client->{databases} })[0];
+    my $hashdsn = $client->choose_database;
     my $driver = $client->driver_for($hashdsn);
     $driver->insert($job);
 
@@ -123,11 +157,14 @@ sub reset_abilities {
 
 sub work_until_done {
     my $client = shift;
-    my @jobs = map { $client->lookup_jobs_by_function($_) }
-               keys %{ $client->{abilities} };
-    for my $job (@jobs) {
+    while (1) {
+        my $job = $client->find_job_for_workers([
+                values %{ $client->{abilities} }
+            ]);
+        last unless $job;
+
         my $class = $client->{abilities}{ $job->funcname };
-        $class->work($job);
+        $class->work_safely($job);
     }
 }
 

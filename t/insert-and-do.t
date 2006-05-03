@@ -21,7 +21,7 @@ my $client = TheSchwartz->new(databases => [
 
 # insert a job
 {
-    my $handle = $client->insert("add", { numbers => [1, 2] });
+    my $handle = $client->insert("Worker::Addition", { numbers => [1, 2] });
     isa_ok $handle, 'TheSchwartz::JobHandle', "inserted job";
 }
 
@@ -91,8 +91,6 @@ teardown_dbs('ts1');
 package Worker::Addition;
 use base 'TheSchwartz::Worker';
 
-sub handles { "add" }  # the funcnames this class handles.  by default it handles __PACKAGE__
-
 sub work {
     my ($class, $job) = @_;
 
@@ -115,7 +113,7 @@ sub work {
     my ($class, $job) = @_;
     my $args = $job->arg;
     %internal_dict = (%internal_dict, %$args);
-    return 1;
+    $job->completed;
 }
 
 sub grab_for { 10 }
@@ -140,5 +138,5 @@ sub grab_for { 10 }
 
 sub max_retries { 1 }
 
-sub retry_delay { my $fails = shift; return 2 ** $fails; }
+sub retry_delay { my $class = shift; my $fails = shift; return 2 ** $fails; }
 

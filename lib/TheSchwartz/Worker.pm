@@ -9,7 +9,7 @@ use Storable ();
 sub grab_job {
     my $class = shift;
     my($client) = @_;
-    return scalar $client->lookup_jobs_by_function($class->handles);
+    return $client->find_job_for_workers([ $class ]);
 }
 
 sub handles {
@@ -19,6 +19,7 @@ sub handles {
 sub keep_exit_status_for { 0 }
 sub max_retries { 0 }
 sub retry_delay { 0 }
+sub grab_for { 60 * 60 }   ## 1 hour
 
 sub work_safely {
     my $worker = shift;
@@ -28,7 +29,10 @@ sub work_safely {
         $res = $worker->work($job);
     };
     if ($@) {
-        $job->add_failure($@);
+        $job->failed($@);
+    }
+    unless ($job->did_something) {
+        $job->failed('Job did not explicitly complete, fail, or get replaced');
     }
     return $res;
 }

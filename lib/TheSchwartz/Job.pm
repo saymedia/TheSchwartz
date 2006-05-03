@@ -104,8 +104,17 @@ sub set_exit_status {
     return $status;
 }
 
+sub did_something {
+    my $job = shift;
+    if (@_) {
+        $job->{__did_something} = shift;
+    }
+    return $job->{__did_something};
+}
+
 sub completed {
     my $job = shift;
+    $job->did_something(1);
     $job->set_exit_status(0);
     $job->driver->remove($job);
 }
@@ -113,6 +122,7 @@ sub completed {
 sub failed {
     my $job = shift;
     my($msg) = @_;
+    $job->did_something(1);
 
     ## Mark the failure in the error table.
     $job->add_failure($msg);
@@ -124,8 +134,9 @@ sub failed {
     if ($class->max_retries >= $failures) {
         if (my $delay = $class->retry_delay($failures)) {
             $job->run_after(time + $delay);
-            $job->driver->update($job);
         }
+        $job->grabbed_until(undef);
+        $job->driver->update($job);
     } else {
 ## TODO how to get the proper exit status?
         $job->set_exit_status(1);
@@ -136,6 +147,7 @@ sub failed {
 sub replace_with {
     my $job = shift;
     my(@jobs) = @_;
+    $job->did_something(1);
 
     ## The new jobs @jobs should be inserted into the same database as $job,
     ## which they're replacing. So get a driver for the database that $job
