@@ -14,6 +14,7 @@ __PACKAGE__->install_properties({
                columns     => [qw(jobid funcname arg uniqkey insert_time
                                   run_after grabbed_until priority coalesce)],
                datasource  => 'job',
+               column_defs => { arg => 'blob' },
                primary_key => 'jobid',
            });
 
