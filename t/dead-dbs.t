@@ -7,7 +7,7 @@ use warnings;
 require 't/lib/db-common.pl';
 
 use TheSchwartz;
-use Test::More tests => 14;
+use Test::More tests => 2;
 
 setup_dbs('t/schema-sqlite.sql' => [ 'ts1' ]);
 teardown_dbs("ts2");  # doesn't exist
