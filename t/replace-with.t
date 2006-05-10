@@ -7,22 +7,24 @@ use warnings;
 require 't/lib/db-common.pl';
 
 use TheSchwartz;
-use Test::More tests => 8;
+use Test::More tests => 16;
 
-my $client = test_client(dbs => ['ts1']);
+run_tests(8, sub {
+    my $client = test_client(dbs => ['ts1']);
 
-my $handle = $client->insert("Worker::Foo", { cluster => 'all'});
-ok($handle);
+    my $handle = $client->insert("Worker::Foo", { cluster => 'all'});
+    ok($handle);
 
-my $job = Worker::Foo->grab_job($client);
-ok($job, "no addition jobs to be grabbed");
+    my $job = Worker::Foo->grab_job($client);
+    ok($job, "no addition jobs to be grabbed");
 
-Worker::Foo->work_safely($job);
+    Worker::Foo->work_safely($job);
 
-$client->can_do("Worker::Foo");
-$client->work_until_done;  # should process 5 jobs.
+    $client->can_do("Worker::Foo");
+    $client->work_until_done;  # should process 5 jobs.
 
-teardown_dbs('ts1');
+    teardown_dbs('ts1');
+});
 
 ############################################################################
 package Worker::Foo;

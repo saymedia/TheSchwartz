@@ -7,26 +7,29 @@ use warnings;
 require 't/lib/db-common.pl';
 
 use TheSchwartz;
-use Test::More tests => 3;
+use Test::More tests => 6;
 
-teardown_dbs("tempty1");
+run_tests(3, sub {
+    teardown_dbs("tempty1");
 
-my $client = TheSchwartz->new(databases => [
-                                            {
-                                                dsn  => dsn_for('tempty1'),
-                                                user => "",
-                                                pass => "",
-                                            },
-                                            ]);
+    my $client = TheSchwartz->new(databases => [
+                                                {
+                                                    dsn  => dsn_for('tempty1'),
+                                                    user => "root",
+                                                    pass => "",
+                                                },
+                                                ]);
 
-# insert a job
-{
-    my $handle;
-    $handle = $client->insert("Worker::Addition", { numbers => [1, 2] });
-    ok(!$handle, "can't insert into empty database");
-    $handle = $client->insert("Worker::Addition", { numbers => [1, 2] });
-    ok(!$handle, "still can't insert into empty database");
-}
+    # insert a job
+    {
+        my $handle;
+        $handle = $client->insert("Worker::Addition", { numbers => [1, 2] });
+        ok(!$handle, "can't insert into empty database");
+        $handle = $client->insert("Worker::Addition", { numbers => [1, 2] });
+        ok(!$handle, "still can't insert into empty database");
+    }
 
-ok(1, "test finishes");
-teardown_dbs("tempty1");
+    ok(1, "test finishes");
+    teardown_dbs("tempty1");
+});
+

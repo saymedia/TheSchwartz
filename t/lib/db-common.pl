@@ -4,6 +4,26 @@ use strict;
 use File::Spec;
 use Carp qw(croak);
 
+sub run_tests {
+    my ($n, $code) = @_;
+
+    # MySQL
+  SKIP: {
+      local $ENV{USE_MYSQL} = 1;
+      my $dbh = eval { mysql_dbh() };
+      skip "MySQL not accessible as root on localhost", $n if $@;
+      $code->();
+  }
+
+    # SQLite
+  SKIP: {
+      my $rv = eval "use DBD::SQLite; 1";
+      skip "SQLite not installed", $n if $@;
+      $code->();
+  }
+
+}
+
 sub test_client {
     my %opts = @_;
     my $dbs     = delete $opts{dbs};

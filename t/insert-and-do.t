@@ -7,77 +7,78 @@ use warnings;
 require 't/lib/db-common.pl';
 
 use TheSchwartz;
-use Test::More tests => 14;
+use Test::More tests => 28;
 
-my $client = test_client(dbs => ['ts1']);
+run_tests(14, sub {
+    my $client = test_client(dbs => ['ts1']);
 
-# insert a job
-{
-    my $handle = $client->insert("Worker::Addition", { numbers => [1, 2] });
-    isa_ok $handle, 'TheSchwartz::JobHandle', "inserted job";
-}
+    # insert a job
+    {
+        my $handle = $client->insert("Worker::Addition", { numbers => [1, 2] });
+        isa_ok $handle, 'TheSchwartz::JobHandle', "inserted job";
+    }
 
-# let's do some work.  the tedious way, specifying which class should grab a job
-{
-    my $job = Worker::Addition->grab_job($client);
-    isa_ok $job, 'TheSchwartz::Job';
-    my $args = $job->arg;
-    is(ref $args, "HASH");  # thawed it for us
-    is_deeply($args, { numbers => [1, 2] }, "got our args back");
+    # let's do some work.  the tedious way, specifying which class should grab a job
+    {
+        my $job = Worker::Addition->grab_job($client);
+        isa_ok $job, 'TheSchwartz::Job';
+        my $args = $job->arg;
+        is(ref $args, "HASH");  # thawed it for us
+        is_deeply($args, { numbers => [1, 2] }, "got our args back");
 
-    # insert a dummy job to test that next grab ignors it
-    ok($client->insert("dummy", [1,2,3]));
+        # insert a dummy job to test that next grab ignors it
+        ok($client->insert("dummy", [1,2,3]));
 
-    # verify no more jobs can be grabbed of this type, even though
-    # we haven't done the first one
-    my $job2 = Worker::Addition->grab_job($client);
-    ok(!$job2, "no addition jobs to be grabbed");
+        # verify no more jobs can be grabbed of this type, even though
+        # we haven't done the first one
+        my $job2 = Worker::Addition->grab_job($client);
+        ok(!$job2, "no addition jobs to be grabbed");
 
-    my $rv = eval { Worker::Addition->work($job); };
-    # ....
-}
+        my $rv = eval { Worker::Addition->work($job); };
+        # ....
+    }
 
-# insert some more jobs
-{
-    ok($client->insert("Worker::MergeInternalDict", { foo => 'bar' }));
-    ok($client->insert("Worker::MergeInternalDict", { bar => 'baz' }));
-    ok($client->insert("Worker::MergeInternalDict", { baz => 'foo' }));
-}
+    # insert some more jobs
+    {
+        ok($client->insert("Worker::MergeInternalDict", { foo => 'bar' }));
+        ok($client->insert("Worker::MergeInternalDict", { bar => 'baz' }));
+        ok($client->insert("Worker::MergeInternalDict", { baz => 'foo' }));
+    }
 
-# work the easier way
-{
-    $client->can_do("Worker::MergeInternalDict");  # single arg form:  say we can do this job name, which is also its package
-    $client->work_until_done;                   # blocks until all databases are empty
-    is_deeply(Worker::MergeInternalDict->dict,
-              {
-                  foo => "bar",
-                  bar => "baz",
-                  baz => "foo",
-              }, "all jobs got completed");
-}
+    # work the easier way
+    {
+        Worker::MergeInternalDict->reset;
+        $client->can_do("Worker::MergeInternalDict");  # single arg form:  say we can do this job name, which is also its package
+        $client->work_until_done;                   # blocks until all databases are empty
+        is_deeply(Worker::MergeInternalDict->dict,
+                  {
+                      foo => "bar",
+                      bar => "baz",
+                      baz => "foo",
+                  }, "all jobs got completed");
+    }
 
-# errors
-{
-    $client->reset_abilities;           # now it, as a worker, can't do anything
-    $client->can_do("Worker::Division");   # now it can only do one thing
+    # errors
+    {
+        $client->reset_abilities;           # now it, as a worker, can't do anything
+        $client->can_do("Worker::Division");   # now it can only do one thing
 
-    my $handle = $client->insert("Worker::Division", { n => 5, d => 0 });
-    ok($handle);
+        my $handle = $client->insert("Worker::Division", { n => 5, d => 0 });
+        ok($handle);
 
-    my $job = Worker::Division->grab_job($client);
-    isa_ok $job, 'TheSchwartz::Job';
+        my $job = Worker::Division->grab_job($client);
+        isa_ok $job, 'TheSchwartz::Job';
 
-    # wrapper around 'work' implemented in the base class which runs work in
-    # eval and notes a failure (with backoff) if job died.
-    Worker::Division->work_safely($job);
+        # wrapper around 'work' implemented in the base class which runs work in
+        # eval and notes a failure (with backoff) if job died.
+        Worker::Division->work_safely($job);
 
-    is($handle->failures, 1, "job has failed once");
-    like(join('', $handle->failure_log), qr/Illegal division by zero/, "noted that we divided by zero");
+        is($handle->failures, 1, "job has failed once");
+        like(join('', $handle->failure_log), qr/Illegal division by zero/, "noted that we divided by zero");
+    }
 
-
-}
-
-teardown_dbs('ts1');
+    teardown_dbs('ts1');
+});
 
 ############################################################################
 package Worker::Addition;
@@ -98,6 +99,8 @@ sub grab_for { 30 }
 package Worker::MergeInternalDict;
 use base 'TheSchwartz::Worker';
 my %internal_dict;
+
+sub reset { %internal_dict = (); }
 
 sub dict { \%internal_dict }
 
