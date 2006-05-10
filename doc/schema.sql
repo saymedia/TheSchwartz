@@ -13,16 +13,15 @@ CREATE TABLE job (
 
 CREATE TABLE note (
         jobid           BIGINT UNSIGNED NOT NULL,
-        notekey,
-        value
+        notekey         VARCHAR(255),
+        PRIMARY KEY (jobid, notekey),
+        value           MEDIUMBLOB
 );
-
 
 CREATE TABLE error (
         jobid           BIGINT UNSIGNED NOT NULL,
         message         VARCHAR(255) NOT NULL
 );
-
 
 CREATE TABLE exitstatus (
         jobid           BIGINT UNSIGNED PRIMARY KEY NOT NULL,
