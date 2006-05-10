@@ -1,5 +1,5 @@
 CREATE TABLE job (
-        jobid           BIGINT UNSIGNED PRIMARY KEY NOT NULL,
+        jobid           BIGINT UNSIGNED PRIMARY KEY NOT NULL AUTO_INCREMENT,
         funcname        VARCHAR(255) NOT NULL,
         arg             MEDIUMBLOB,
         uniqkey         VARCHAR(255) NULL,
