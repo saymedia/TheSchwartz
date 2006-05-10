@@ -172,7 +172,7 @@ sub insert {
         next if $tried{$hashdsn}++;
 
         ## If the database is dead, skip it.
-        next if $client->is_database_dead($hashdsn);
+        $tries--, next if $client->is_database_dead($hashdsn);
 
         my $driver = $client->driver_for($hashdsn);
         eval { $driver->insert($job) };
@@ -183,6 +183,9 @@ sub insert {
         }
         $tries--;
     }
+
+    ## If the job wasn't submitted successfully to any database, return.
+    return unless $job->jobid;
 
     ## Attach a handle to the job, and return the handle.
     my $handle = TheSchwartz::JobHandle->new({
