@@ -9,15 +9,8 @@ require 't/lib/db-common.pl';
 use TheSchwartz;
 use Test::More tests => 13;
 
-setup_dbs('t/schema-sqlite.sql' => [ 'ts1' ]);
+my $client = test_client(dbs => ['ts1']);
 
-my $client = TheSchwartz->new(databases => [
-                                            {
-                                                dsn  => dsn_for('ts1'),
-                                                user => "",
-                                                pass => "",
-                                            },
-                                            ]);
 my $handle;
 
 $handle = $client->insert("feedmajor", { scoops => 2, with => ['cheese','love'] });

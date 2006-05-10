@@ -2,6 +2,33 @@
 
 use strict;
 use File::Spec;
+use Carp qw(croak);
+
+sub test_client {
+    my %opts = @_;
+    my $dbs     = delete $opts{dbs};
+    my $init    = delete $opts{init};
+    croak "'dbs' not an ARRAY" unless ref $dbs eq "ARRAY";
+    croak "unknown opts" if %opts;
+    $init = 1 unless defined $init;
+
+    if ($init) {
+        setup_dbs(schema_file() => $dbs);
+    }
+
+    return TheSchwartz->new(databases => [
+                                          map { {
+                                              dsn  => dsn_for($_),
+                                              user => "root",
+                                              pass => "",
+                                          } } @$dbs
+                                          ]);
+}
+
+sub schema_file {
+    return "doc/schema.sql" if $ENV{USE_MYSQL};
+    return "t/schema-sqlite.sql";
+}
 
 sub db_filename {
     my($dbname) = @_;
