@@ -9,21 +9,11 @@ require 't/lib/db-common.pl';
 use TheSchwartz;
 use Test::More tests => 2;
 
-setup_dbs('t/schema-sqlite.sql' => [ 'ts1' ]);
-teardown_dbs("ts2");  # doesn't exist
+setup_dbs('ts1');
+teardown_dbs('ts2');  # doesn't exist
 
-my $client = TheSchwartz->new(databases => [
-                                            {
-                                                dsn  => dsn_for('ts2'),
-                                                user => "",
-                                                pass => "",
-                                            },
-                                            {
-                                                dsn  => dsn_for('ts1'),
-                                                user => "",
-                                                pass => "",
-                                            },
-                                            ]);
+my $client = test_client(dbs => ['ts2', 'ts1'],
+                         init => 0);
 
 # insert a job
 my $n_handles = 0;

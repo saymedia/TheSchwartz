@@ -50,8 +50,11 @@ sub dsn_for {
 }
 
 sub setup_dbs {
-    my($schema, $dbs) = @_;
-    $schema = "doc/schema.sql" if $ENV{USE_MYSQL};
+    shift if $_[0] =~ /\.sql$/;  # skip filenames (old)
+    my(@dbs) = @_;
+    my $dbs = ref $dbs[0] ? $dbs[0] : \@dbs;  # support array or arrayref (old)
+
+    my $schema = schema_file();
     teardown_dbs(@$dbs);
     for my $dbname (@$dbs) {
         if ($ENV{USE_MYSQL}) {

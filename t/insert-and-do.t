@@ -9,15 +9,7 @@ require 't/lib/db-common.pl';
 use TheSchwartz;
 use Test::More tests => 14;
 
-setup_dbs('t/schema-sqlite.sql' => [ 'ts1' ]);
-
-my $client = TheSchwartz->new(databases => [
-                                            {
-                                                dsn  => dsn_for('ts1'),
-                                                user => "",
-                                                pass => "",
-                                            },
-                                            ]);
+my $client = test_client(dbs => ['ts1']);
 
 # insert a job
 {
