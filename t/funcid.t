@@ -24,7 +24,7 @@ run_tests(10, sub {
     is $job->funcname, 'feedmajor', 'handle->job gives us the right job';
 
     my $job2 = TheSchwartz::Job->new(
-                                     funcid   => $job->funcid,
+                                     funcname => 'feedmajor',
                                      run_after=> time() + 60,
                                      priority => 7,
                                      arg      => { scoops => 2, with => ['cheese','love'] },
