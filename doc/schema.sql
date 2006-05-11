@@ -1,6 +1,12 @@
+CREATE TABLE funcmap (
+        funcid         INT UNSIGNED PRIMARY KEY NOT NULL AUTO_INCREMENT,
+        funcname       VARCHAR(255) NOT NULL,
+        UNIQUE(funcname)
+);
+
 CREATE TABLE job (
         jobid           BIGINT UNSIGNED PRIMARY KEY NOT NULL AUTO_INCREMENT,
-        funcname        VARCHAR(255) NOT NULL,
+        funcid          INT UNSIGNED NOT NULL,
         arg             MEDIUMBLOB,
         uniqkey         VARCHAR(255) NULL,
         insert_time     INTEGER UNSIGNED,
