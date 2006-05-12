@@ -166,6 +166,12 @@ sub replace_with {
     ## Mark the original job as completed successfully.
     $job->completed;
 
+    # for testing
+    if ($TheSchwartz::Job::_T_REPLACE_WITH_FAIL) {
+        $driver->rollback;
+        die "commit failed for driver: due to testing\n";
+    }
+
     ## Looks like it's all ok, so commit.
     $driver->commit;
 }
