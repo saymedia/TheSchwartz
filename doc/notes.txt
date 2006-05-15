@@ -1,4 +1,4 @@
-
+TODO:  verify replace_with() with empty list is the same as $job->completed
 
 
 policy is all on worker side
