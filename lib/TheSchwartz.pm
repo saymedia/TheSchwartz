@@ -2,11 +2,13 @@
 
 package TheSchwartz;
 use strict;
-use fields qw( databases abilities retry_seconds dead_dsns retry_at );
+use fields qw( databases abilities retry_seconds dead_dsns retry_at
+               funcmap_cache );
 
 use Carp qw( croak );
 use Data::ObjectDriver::Driver::DBI;
 use Digest::MD5 qw( md5_hex );
+use TheSchwartz::FuncMap;
 use TheSchwartz::Job;
 use TheSchwartz::JobHandle;
 
@@ -28,6 +30,7 @@ sub new {
     $client->reset_abilities;
     $client->{dead_dsns} = {};
     $client->{retry_at} = {};
+    $client->{funcmap_cache} = {};
 
     return $client;
 }
@@ -83,6 +86,7 @@ sub lookup_job {
     my $job = $driver->lookup('TheSchwartz::Job' => $handle->jobid)
         or return;
     $job->handle($handle);
+    $job->funcname( $client->funcid_to_name($driver, $handle->dsn_hashed, $job->funcid) );
     return $job;
 }
 
@@ -108,8 +112,10 @@ sub find_job_for_workers {
             ## 2. the job is scheduled to be run (run_after is in the past);
             ## 3. no one else is working on the job (grabbed_until is NULL or
             ##    in the past).
+            my @ids = map { $client->funcname_to_id($driver, $hashdsn, $_) }
+                      keys %functions;
             ($job) = $driver->search('TheSchwartz::Job' => {
-                    funcname      => [ keys %functions ],
+                    funcid        => \@ids,
                     run_after     => { op => '<=', value => time },
                     grabbed_until => [
                         \'IS NULL',
@@ -123,6 +129,10 @@ sub find_job_for_workers {
 
         if ($job) {
             ## Got a job!
+
+            ## Convert the funcid to a funcname, based on this database's map.
+            $job->funcname( $client->funcid_to_name($driver, $hashdsn, $job->funcid) );
+
             ## Update the job's grabbed_until column so that
             ## no one else takes it.
             my $worker_class = $functions{$job->funcname};
@@ -175,7 +185,15 @@ sub insert {
         $tries--, next if $client->is_database_dead($hashdsn);
 
         my $driver = $client->driver_for($hashdsn);
-        eval { $driver->insert($job) };
+        eval {
+            ## Set the funcid of the job, based on the funcname. Since each
+            ## database has a separate cache, we need to recalculate this for
+            ## each DSN. This might fail, if the database is dead.
+            $job->funcid( $client->funcname_to_id($driver, $hashdsn, $job->funcname) );
+
+            ## Now, insert the job. This also might fail.
+            $driver->insert($job);
+        };
         if ($@) {
             $client->mark_database_as_dead($hashdsn);
         } elsif ($job->jobid) {
@@ -228,6 +246,41 @@ sub work_until_done {
         my $class = $client->{abilities}{ $job->funcname };
         $class->work_safely($job);
     }
+}
+
+sub funcid_to_name {
+    my TheSchwartz $client = shift;
+    my($driver, $hashdsn, $funcid) = @_;
+    my $cache = $client->_funcmap_cache($hashdsn);
+    return $cache->{funcid2name}{$funcid};
+}
+
+sub funcname_to_id {
+    my TheSchwartz $client = shift;
+    my($driver, $hashdsn, $funcname) = @_;
+    my $cache = $client->_funcmap_cache($hashdsn);
+    unless (exists $cache->{funcname2id}{$funcname}) {
+        my $map = TheSchwartz::FuncMap->create_or_find($driver, $funcname);
+        $cache->{funcname2id}{ $map->funcname } = $map->funcid;
+        $cache->{funcid2name}{ $map->funcid }   = $map->funcname;
+    }
+    return $cache->{funcname2id}{$funcname};
+}
+
+sub _funcmap_cache {
+    my TheSchwartz $client = shift;
+    my($hashdsn) = @_;
+    unless (exists $client->{funcmap_cache}{$hashdsn}) {
+        my $driver = $client->driver_for($hashdsn);
+        my @maps = $driver->search('TheSchwartz::FuncMap');
+        my $cache = { funcname2id => {}, funcid2name => {} };
+        for my $map (@maps) {
+            $cache->{funcname2id}{ $map->funcname } = $map->funcid;
+            $cache->{funcid2name}{ $map->funcid }   = $map->funcname;
+        }
+        $client->{funcmap_cache}{$hashdsn} = $cache;
+    }
+    return $client->{funcmap_cache}{$hashdsn};
 }
 
 1;

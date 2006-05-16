@@ -11,7 +11,7 @@ use TheSchwartz::ExitStatus;
 use TheSchwartz::JobHandle;
 
 __PACKAGE__->install_properties({
-               columns     => [qw(jobid funcname arg uniqkey insert_time
+               columns     => [qw(jobid funcid arg uniqkey insert_time
                                   run_after grabbed_until priority coalesce)],
                datasource  => 'job',
                column_defs => { arg => 'blob' },
@@ -58,6 +58,14 @@ sub new {
         $job->$key($param{$key});
     }
     return $job;
+}
+
+sub funcname {
+    my $job = shift;
+    if (@_) {
+        $job->{__funcname} = shift;
+    }
+    return $job->{__funcname};
 }
 
 sub handle {

@@ -7,9 +7,9 @@ use warnings;
 require 't/lib/db-common.pl';
 
 use TheSchwartz;
-use Test::More tests => 20;
+use Test::More tests => 16;
 
-run_tests(10, sub {
+run_tests(8, sub {
 
     my $client = test_client(dbs => ['ts1']);
 
@@ -37,10 +37,8 @@ run_tests(10, sub {
     isa_ok $h2, 'TheSchwartz::JobHandle';
 
     my $job2_back = $h2->job;
-    ok(! $job2->{funcname}, "internal: no funcname present yet");
-    ok($job2->{funcid}, "internal: funcid present");
+    ok($job2->funcid, "internal: funcid present");
     is($job2->funcname, "feedmajor", "funcname mapping worked");
-    ok($job2->{funcname}, "internal: funcname present afterwards");
 
     teardown_dbs('ts1');
 });
