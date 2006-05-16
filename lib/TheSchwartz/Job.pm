@@ -161,6 +161,9 @@ sub replace_with {
     ## The new jobs @jobs should be inserted into the same database as $job,
     ## which they're replacing. So get a driver for the database that $job
     ## belongs to.
+    my $handle = $job->handle;
+    my $client = $handle->client;
+    my $hashdsn = $handle->dsn_hashed;
     my $driver = $job->driver;
 
     ## Start a transaction.
@@ -168,7 +171,7 @@ sub replace_with {
 
     ## Insert the new jobs.
     for my $j (@jobs) {
-        $driver->insert($j);
+        $client->insert_job_to_driver($j, $driver, $hashdsn);
     }
 
     ## Mark the original job as completed successfully.

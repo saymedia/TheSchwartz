@@ -164,6 +164,34 @@ sub choose_database {
     $dsns[rand @dsns];
 }
 
+sub insert_job_to_driver {
+    my $client = shift;
+    my($job, $driver, $hashdsn) = @_;
+    eval {
+        ## Set the funcid of the job, based on the funcname. Since each
+        ## database has a separate cache, this needs to be calculated based
+        ## on the hashed DSN. Also: this might fail, if the database is dead.
+        $job->funcid( $client->funcname_to_id($driver, $hashdsn, $job->funcname) );
+
+        ## Now, insert the job. This also might fail.
+        $driver->insert($job);
+    };
+    if ($@) {
+        $client->mark_database_as_dead($hashdsn);
+    } elsif ($job->jobid) {
+        ## We inserted the job successfully!
+        ## Attach a handle to the job, and return the handle.
+        my $handle = TheSchwartz::JobHandle->new({
+                dsn_hashed => $hashdsn,
+                client     => $client,
+                jobid      => $job->jobid
+            });
+        $job->handle($handle);
+        return $handle;
+    }
+    return undef;
+}
+
 sub insert {
     my TheSchwartz $client = shift;
     my($job) = @_;
@@ -173,47 +201,29 @@ sub insert {
 
     ## Try each of the databases that are registered with $client, in
     ## random order. If we successfully create the job, exit the loop.
-    my($hashdsn, %tried);
+    my(%tried);
     my $dead = $client->{dead_dsns};
     my $retry = $client->{retry_at};
     my $tries = scalar keys %{ $client->{databases} };
     while ($tries) {
-        $hashdsn = $client->choose_database;
+        my $hashdsn = $client->choose_database;
         next if $tried{$hashdsn}++;
 
         ## If the database is dead, skip it.
         $tries--, next if $client->is_database_dead($hashdsn);
 
         my $driver = $client->driver_for($hashdsn);
-        eval {
-            ## Set the funcid of the job, based on the funcname. Since each
-            ## database has a separate cache, we need to recalculate this for
-            ## each DSN. This might fail, if the database is dead.
-            $job->funcid( $client->funcname_to_id($driver, $hashdsn, $job->funcname) );
 
-            ## Now, insert the job. This also might fail.
-            $driver->insert($job);
-        };
-        if ($@) {
-            $client->mark_database_as_dead($hashdsn);
-        } elsif ($job->jobid) {
-            last;
-        }
+        ## Try to insert the job into this database. If we get a handle
+        ## back, return it.
+        my $handle = $client->insert_job_to_driver($job, $driver, $hashdsn);
+        return $handle if $handle;
+
         $tries--;
     }
 
     ## If the job wasn't submitted successfully to any database, return.
-    return unless $job->jobid;
-
-    ## Attach a handle to the job, and return the handle.
-    my $handle = TheSchwartz::JobHandle->new({
-            dsn_hashed => $hashdsn,
-            client     => $client,
-            jobid      => $job->jobid
-        });
-    $job->handle($handle);
-
-    return $handle;
+    return undef;
 }
 
 sub handle_from_string {
