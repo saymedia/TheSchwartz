@@ -25,9 +25,12 @@ sub work_safely {
     my $worker = shift;
     my($job) = @_;
     my $res;
+#    warn "Working on $worker...\n";
     eval {
         $res = $worker->work($job);
     };
+#    warn "res = $res, error = $@\n";
+
     if ($@) {
         $job->failed($@);
     }
