@@ -7,9 +7,9 @@ use warnings;
 require 't/lib/db-common.pl';
 
 use TheSchwartz;
-use Test::More tests => 16;
+use Test::More tests => 20;
 
-run_tests(8, sub {
+run_tests(10, sub {
     my $client = test_client(dbs => ['ts1']);
 
     my $handle = $client->insert("Worker::Foo", { cluster => 'all'});
@@ -22,6 +22,13 @@ run_tests(8, sub {
 
     $client->can_do("Worker::Foo");
     $client->work_until_done;  # should process 5 jobs.
+
+    # finish a job by replacing it with nothing
+    $handle = $client->insert("Worker::Foo", { cluster => 'gibberish'});
+    ok($handle->is_pending, "job is still pending");
+    $job = $handle->job;
+    $job->replace_with();
+    ok(! $handle->is_pending, "job no longer pending");
 
     teardown_dbs('ts1');
 });
