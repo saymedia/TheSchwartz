@@ -28,12 +28,13 @@ sub test_client {
     my %opts = @_;
     my $dbs     = delete $opts{dbs};
     my $init    = delete $opts{init};
+    my $pfx     = delete $opts{dbprefix};
     croak "'dbs' not an ARRAY" unless ref $dbs eq "ARRAY";
     croak "unknown opts" if %opts;
     $init = 1 unless defined $init;
 
     if ($init) {
-        setup_dbs(schema_file() => $dbs);
+        setup_dbs({ prefix => $pfx }, $dbs);
     }
 
     return TheSchwartz->new(databases => [
@@ -41,6 +42,7 @@ sub test_client {
                                               dsn  => dsn_for($_),
                                               user => "root",
                                               pass => "",
+                                              prefix => $pfx,
                                           } } @$dbs
                                           ]);
 }
@@ -71,6 +73,11 @@ sub dsn_for {
 
 sub setup_dbs {
     shift if $_[0] =~ /\.sql$/;  # skip filenames (old)
+
+    my $opts = ref $_[0] eq "HASH" ? shift : {};
+    my $pfx = delete $opts->{prefix} || "";
+    die "unknown opts" if %$opts;
+
     my(@dbs) = @_;
     my $dbs = ref $dbs[0] ? $dbs[0] : \@dbs;  # support array or arrayref (old)
 
@@ -85,6 +92,7 @@ sub setup_dbs {
             or die "Couldn't connect: $!\n";
         my @sql = load_sql($schema);
         for my $sql (@sql) {
+            $sql =~ s!^\s*create\s+table\s+(\w+)!CREATE TABLE ${pfx}$1!i;
             $dbh->do($sql);
         }
         $dbh->disconnect;
