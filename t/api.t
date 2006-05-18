@@ -7,7 +7,7 @@ use warnings;
 require 't/lib/db-common.pl';
 
 use TheSchwartz;
-use Test::More tests => 26;
+use Test::More tests => 52;
 
 run_tests(13, sub {
     foreach my $pfx ("", "testprefix_") {

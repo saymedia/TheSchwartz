@@ -52,6 +52,7 @@ sub driver_for {
             dsn      => $db->{dsn},
             username => $db->{user},
             password => $db->{pass},
+            prefix   => $db->{prefix},
         );
 }
 
