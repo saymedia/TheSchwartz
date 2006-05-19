@@ -122,7 +122,7 @@ sub find_job_for_workers {
                         \'IS NULL',
                         { op => '<=', value => time },
                     ],
-                });
+                }, { limit => 1 });
         };
         if ($@) {
             $client->mark_database_as_dead($hashdsn);
