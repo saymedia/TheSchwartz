@@ -249,14 +249,23 @@ sub reset_abilities {
 sub work_until_done {
     my TheSchwartz $client = shift;
     while (1) {
-        my $job = $client->find_job_for_workers([
-                values %{ $client->{abilities} }
-            ]);
-        last unless $job;
-
-        my $class = $client->{abilities}{ $job->funcname };
-        $class->work_safely($job);
+        $client->work_once or last;
     }
+}
+
+sub work_once {
+    my TheSchwartz $client = shift;
+    my $job = $client->find_job_for_workers([
+            values %{ $client->{abilities} }
+        ]);
+    return unless $job;
+
+    my $class = $client->{abilities}{ $job->funcname };
+    $class->work_safely($job);
+
+    ## We got a job, so return 1 so work_until_done (which calls this method)
+    ## knows to keep looking for jobs.
+    return 1;
 }
 
 sub funcid_to_name {
