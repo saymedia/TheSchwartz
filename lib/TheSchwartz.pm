@@ -94,7 +94,6 @@ sub lookup_job {
 sub find_job_for_workers {
     my TheSchwartz $client = shift;
     my($worker_classes) = @_;
-    my %functions = map { $_->handles => $_ } @$worker_classes;
 
     for my $hashdsn (keys %{ $client->{databases} }) {
         ## If the database is dead, skip it.
@@ -114,7 +113,7 @@ sub find_job_for_workers {
             ## 3. no one else is working on the job (grabbed_until is NULL or
             ##    in the past).
             my @ids = map { $client->funcname_to_id($driver, $hashdsn, $_) }
-                      keys %functions;
+                      @$worker_classes;
             ($job) = $driver->search('TheSchwartz::Job' => {
                     funcid        => \@ids,
                     run_after     => { op => '<=', value => time },
@@ -136,7 +135,7 @@ sub find_job_for_workers {
 
             ## Update the job's grabbed_until column so that
             ## no one else takes it.
-            my $worker_class = $functions{$job->funcname};
+            my $worker_class = $job->funcname;
             $job->grabbed_until(time + $worker_class->grab_for);
 
             ## Update the job in the database, and end the transaction.
@@ -236,14 +235,13 @@ sub handle_from_string {
 
 sub can_do {
     my TheSchwartz $client = shift;
-    my($key, $class) = @_;
-    $class ||= $key;
-    $client->{abilities}{$key} = $class;
+    my($class) = @_;
+    push @{ $client->{abilities} }, $class;
 }
 
 sub reset_abilities {
     my TheSchwartz $client = shift;
-    $client->{abilities} = {};
+    $client->{abilities} = [];
 }
 
 sub work_until_done {
@@ -253,14 +251,15 @@ sub work_until_done {
     }
 }
 
+## Returns true if it did something, false if no jobs were found
 sub work_once {
     my TheSchwartz $client = shift;
     my $job = $client->find_job_for_workers([
-            values %{ $client->{abilities} }
+            @{ $client->{abilities} }
         ]);
     return unless $job;
 
-    my $class = $client->{abilities}{ $job->funcname };
+    my $class = $job->funcname;
     $class->work_safely($job);
 
     ## We got a job, so return 1 so work_until_done (which calls this method)

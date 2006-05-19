@@ -12,10 +12,6 @@ sub grab_job {
     return $client->find_job_for_workers([ $class ]);
 }
 
-sub handles {
-    return $_[0];
-}
-
 sub keep_exit_status_for { 0 }
 sub max_retries { 0 }
 sub retry_delay { 0 }
