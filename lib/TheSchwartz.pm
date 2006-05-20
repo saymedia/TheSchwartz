@@ -8,6 +8,7 @@ use fields qw( databases abilities retry_seconds dead_dsns retry_at
 use Carp qw( croak );
 use Data::ObjectDriver::Driver::DBI;
 use Digest::MD5 qw( md5_hex );
+use List::Util qw( shuffle );
 use TheSchwartz::FuncMap;
 use TheSchwartz::Job;
 use TheSchwartz::JobHandle;
@@ -95,7 +96,7 @@ sub find_job_for_workers {
     my TheSchwartz $client = shift;
     my($worker_classes) = @_;
 
-    for my $hashdsn (keys %{ $client->{databases} }) {
+    for my $hashdsn ($client->shuffled_databases) {
         ## If the database is dead, skip it.
         next if $client->is_database_dead($hashdsn);
 
@@ -158,10 +159,10 @@ sub find_job_for_workers {
     }
 }
 
-sub choose_database {
+sub shuffled_databases {
     my TheSchwartz $client = shift;
     my @dsns = keys %{ $client->{databases} };
-    $dsns[rand @dsns];
+    return shuffle(@dsns);
 }
 
 sub insert_job_to_driver {
@@ -201,16 +202,11 @@ sub insert {
 
     ## Try each of the databases that are registered with $client, in
     ## random order. If we successfully create the job, exit the loop.
-    my(%tried);
     my $dead = $client->{dead_dsns};
     my $retry = $client->{retry_at};
-    my $tries = scalar keys %{ $client->{databases} };
-    while ($tries) {
-        my $hashdsn = $client->choose_database;
-        next if $tried{$hashdsn}++;
-
+    for my $hashdsn ($client->shuffled_databases) {
         ## If the database is dead, skip it.
-        $tries--, next if $client->is_database_dead($hashdsn);
+        next if $client->is_database_dead($hashdsn);
 
         my $driver = $client->driver_for($hashdsn);
 
@@ -218,8 +214,6 @@ sub insert {
         ## back, return it.
         my $handle = $client->insert_job_to_driver($job, $driver, $hashdsn);
         return $handle if $handle;
-
-        $tries--;
     }
 
     ## If the job wasn't submitted successfully to any database, return.
