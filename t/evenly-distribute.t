@@ -36,15 +36,21 @@ run_tests(5, sub {
             or die;
     }
 
-    $jobs1 = $db1->selectrow_array("SELECT COUNT(*) FROM job");
-    $jobs2 = $db2->selectrow_array("SELECT COUNT(*) FROM job");
+    my $jobs1b = $db1->selectrow_array("SELECT COUNT(*) FROM job");
+    my $jobs2b = $db2->selectrow_array("SELECT COUNT(*) FROM job");
+
     my $remain_jobs = $n_jobs - $do_jobs;
+    is($jobs1b + $jobs2b, $remain_jobs, "expected jobs remain");
 
-    is($jobs1 + $jobs2, $remain_jobs, "expected jobs remain");
+    # deltas: how much work gone done each
+    my $jobs1d = $jobs1 - $jobs1b;
+    my $jobs2d = $jobs2 - $jobs2b;
 
-    my $postdiff = abs($jobs1 - $jobs2);
-    my $uneven_percent = $postdiff / max($jobs1, $jobs2);
-    ok($uneven_percent < 0.20, "unevent percent is $uneven_percent ($postdiff apart: $jobs1 and $jobs2)");
+    # difference in work done:
+    my $workdiff = abs($jobs1d - $jobs2d);
+
+    my $uneven_percent = $workdiff / max($jobs1d, $jobs2d);
+    ok($uneven_percent < 0.40, "two dbs did about same amount of work");
 
 
 });
