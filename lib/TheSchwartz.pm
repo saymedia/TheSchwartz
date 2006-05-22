@@ -2,8 +2,9 @@
 
 package TheSchwartz;
 use strict;
-use fields qw( databases abilities retry_seconds dead_dsns retry_at
-               funcmap_cache );
+use fields qw( databases retry_seconds dead_dsns retry_at
+               funcmap_cache
+               all_abilities current_abilities );
 
 use Carp qw( croak );
 use Data::ObjectDriver::Driver::DBI;
@@ -95,6 +96,7 @@ sub lookup_job {
 sub find_job_for_workers {
     my TheSchwartz $client = shift;
     my($worker_classes) = @_;
+    $worker_classes ||= $client->{current_abilities};
 
     for my $hashdsn ($client->shuffled_databases) {
         ## If the database is dead, skip it.
@@ -230,12 +232,39 @@ sub handle_from_string {
 sub can_do {
     my TheSchwartz $client = shift;
     my($class) = @_;
-    push @{ $client->{abilities} }, $class;
+    push @{ $client->{all_abilities} }, $class;
+    push @{ $client->{current_abilities} }, $class;
 }
 
 sub reset_abilities {
     my TheSchwartz $client = shift;
-    $client->{abilities} = [];
+    $client->{all_abilities} = [];
+    $client->{current_abilities} = [];
+}
+
+sub restore_full_abilities {
+    my $client = shift;
+    $client->{current_abilities} = [ @{ $client->{all_abilities} } ];
+}
+
+sub temporarily_remove_ability {
+    my $client = shift;
+    my($class) = @_;
+    $client->{current_abilities} = [
+            grep { $_ ne $class } @{ $client->{current_abilities} }
+        ];
+    if (!@{ $client->{current_abilities} }) {
+        $client->restore_full_abilities;
+    }
+}
+
+sub work {
+    my TheSchwartz $client = shift;
+    my($delay) = @_;
+    $delay ||= 5;
+    while (1) {
+        sleep $delay unless $client->work_once;
+    }
 }
 
 sub work_until_done {
@@ -248,12 +277,30 @@ sub work_until_done {
 ## Returns true if it did something, false if no jobs were found
 sub work_once {
     my TheSchwartz $client = shift;
-    my $job = $client->find_job_for_workers([
-            @{ $client->{abilities} }
-        ]);
+
+    ## Look for a job with our current set of abilities. Note that the
+    ## list of current abilities may not be equal to the full set of
+    ## abilities, to allow for even distribution between jobs.
+    my $job = $client->find_job_for_workers;
+
+    ## If we didn't find anything, restore our full abilities, and try
+    ## again.
+    if (!$job &&
+        @{ $client->{current_abilities} } < @{ $client->{all_abilities} }) {
+        $client->restore_full_abilities;
+        $job = $client->find_job_for_workers;
+    }
+
+    ## If we still don't have anything, return.
     return unless $job;
 
+    ## Now that we found a job for this particular funcname, remove it
+    ## from our list of current abilities. So the next time we look for a
+    ## we'll find a job for a different funcname. This prevents starvation of
+    ## high funcid values because of the way MySQL's indexes work.
     my $class = $job->funcname;
+    $client->temporarily_remove_ability($class);
+
     $class->work_safely($job);
 
     ## We got a job, so return 1 so work_until_done (which calls this method)
