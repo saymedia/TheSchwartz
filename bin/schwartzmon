@@ -41,16 +41,19 @@ USAGE
 }
 
 my $opt_help = 0;
+my ($opt_follow, $opt_last, $opt_inlast);
 usage() unless GetOptions("job=s" => \$job,
                           "maxage=i" => \$max_age,
                           "maxcount=i" => \$max_count,
                           "help"       => \$opt_help,
+                          "follow|f"   => \$opt_follow,
+                          "last=i"     => \$opt_last,
+                          "inlast=i"     => \$opt_inlast,
                           );
 usage() if $opt_help;
 
 my $cmd = shift || "queues";
 usage() unless $cmd =~ /^queues|errors$/;
-
 
 my $dbh = DBI->connect("DBI:mysql:$dbname", $user, $pass)
     or die "Failed to connect to database: " . DBI->errstr;
@@ -64,6 +67,7 @@ exit 0;
 #################
 
 sub queues {
+    my $some_alert = 0;
     foreach my $getter (@_) {
         my $dbh = $getter->()
             or next;
@@ -84,11 +88,42 @@ sub queues {
             $okay = 0 if $behind    > $max_age;
             $okay = 0 if $inf->{ct} > $max_count;
             next if $okay;
+            $some_alert = 1;
 
             print "$funcname\n";
             print "  outstanding: $inf->{ct}\n";
             print "  behind_secs: $behind\n";
         }
     }
+    exit($some_alert ? 1 : 0);
 }
 
+sub errors {
+    #my ($opt_follow, $opt_last, $opt_inlast);
+    if ($opt_follow) {
+        follow_errors(@_);
+    }
+
+    $opt_last = 100 unless $opt_last || $opt_inlast;
+
+    my $sql;
+    if ($opt_last) {
+        $sql = "SELECT error_time, jobid, message FROM error ORDER BY error_time DESC LIMIT $opt_last";
+    } elsif ($opt_inlast) {
+        my $since = time() - $opt_inlast;
+        $sql = "SELECT error_time, jobid, message FROM error WHERE error_time >= $since ORDER BY error_time LIMIT 50000";
+    }
+
+    my @rows;
+    foreach my $getter (@_) {
+        my $dbh = $getter->()
+            or next;
+
+        my $sth = $dbh->prepare($sql);
+        $sth->execute;
+        push @rows, $_ while $_ = $sth->fetchrow_hashref;
+    }
+    @rows = sort { $a->{error_time} <=> $b->{error_time} } @rows;
+    use Data::Dumper;
+    print Dumper(\@rows);
+}
