@@ -1,0 +1,63 @@
+#!/usr/bin/perl
+use strict;
+use DBI;
+use Getopt::Long;
+
+my $dbname = "schwartz";
+my $user = "root";
+my $pass = "";
+my $job = "";
+my $max_age = 0;
+my $max_count = 0;
+
+sub usage {
+    die <<USAGE;
+Usage: schwartzmon [OPTS]
+
+   --job=<JOBNAME>    Only look at one specific job name.  Else all are considered.
+   --maxage=<n>       Don't complain if age of overdue job queue is <= 'n'
+   --maxcount=<n>     Don't complain if depth of overdue job queue is <= 'n'
+
+Verbosity;
+   if no alerts, nothing is printed, and exit status is 0.
+
+Exit status:
+   0 if no alerts,
+   non-zero if there are alerts, in which case the alerts are printed.
+
+USAGE
+
+}
+
+usage() unless GetOptions("job=s" => \$job,
+                          "maxage=i" => \$max_age,
+                          "maxcount=i" => \$max_count
+                          );
+
+
+my $dbh = DBI->connect("DBI:mysql:$dbname", $user, $pass)
+    or die "Failed to connect to database: " . DBI->errstr;
+
+my $sth;
+
+my $funcmap = $dbh->selectall_hashref("SELECT funcid, funcname FROM funcmap", "funcid");
+
+foreach my $funcid (sort { $funcmap->{$a}{funcname} cmp $funcmap->{$b}{funcname} } keys %$funcmap) {
+    my $funcname = $funcmap->{$funcid}{funcname};
+    next if $job && $funcname ne $job;
+
+    my $now = time();
+    my $inf = $dbh->selectrow_hashref("SELECT COUNT(*) as 'ct', MIN(run_after) 'oldest' FROM job WHERE funcid=? AND run_after <= $now",
+                                      undef, $funcid);
+    my $behind = $inf->{ct} ? ($now - $inf->{oldest}) : 0;
+
+    # okay by default, then we apply rules:
+    my $okay = 1;
+    $okay = 0 if $behind    > $max_age;
+    $okay = 0 if $inf->{ct} > $max_count;
+    next if $okay;
+
+    print "$funcname\n";
+    print "  outstanding: $inf->{ct}\n";
+    print "  behind_secs: $behind\n";
+}
