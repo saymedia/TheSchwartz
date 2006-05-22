@@ -26,13 +26,17 @@ CREATE TABLE note (
 );
 
 CREATE TABLE error (
+        error_time      INTEGER UNSIGNED NOT NULL,
         jobid           BIGINT UNSIGNED NOT NULL,
-        message         VARCHAR(255) NOT NULL
+        message         VARCHAR(255) NOT NULL,
+        INDEX (error_time),
+        INDEX (jobid)
 );
 
 CREATE TABLE exitstatus (
         jobid           BIGINT UNSIGNED PRIMARY KEY NOT NULL,
         status          SMALLINT UNSIGNED,
         completion_time INTEGER UNSIGNED,
-        delete_after    INTEGER UNSIGNED
+        delete_after    INTEGER UNSIGNED,
+        INDEX (delete_after)
 );

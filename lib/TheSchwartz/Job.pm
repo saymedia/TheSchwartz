@@ -89,6 +89,7 @@ sub add_failure {
     my $job = shift;
     my($msg) = @_;
     my $error = TheSchwartz::Error->new;
+    $error->error_time(time());
     $error->jobid($job->jobid);
     $error->message($msg || '');
     $job->driver->insert($error);
