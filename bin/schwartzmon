@@ -29,10 +29,13 @@ USAGE
 
 }
 
+my $opt_help = 0;
 usage() unless GetOptions("job=s" => \$job,
                           "maxage=i" => \$max_age,
-                          "maxcount=i" => \$max_count
+                          "maxcount=i" => \$max_count,
+                          "help"       => \$opt_help,
                           );
+usage() if $opt_help;
 
 
 my $dbh = DBI->connect("DBI:mysql:$dbname", $user, $pass)
