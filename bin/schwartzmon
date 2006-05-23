@@ -55,22 +55,21 @@ usage() if $opt_help;
 my $cmd = shift || "queues";
 usage() unless $cmd =~ /^queues|errors$/;
 
-my $dbh = DBI->connect("DBI:mysql:$dbname", $user, $pass)
-    or die "Failed to connect to database: " . DBI->errstr;
+my $dbset = DBSet->new;
+$dbset->add(DBHandle->new({ dsn => "DBI:mysql:$dbname", user => $user, pass => $pass}));
 
-my @getters = (sub { return $dbh });
-
-if ($cmd eq "queues") { queues(@getters); }
-if ($cmd eq "errors") { errors(@getters); }
+if ($cmd eq "queues") { queues($dbset); }
+if ($cmd eq "errors") { errors($dbset); }
 exit 0;
 
 #################
 
 sub queues {
+    my $dbs = shift;
     my $some_alert = 0;
-    foreach my $getter (@_) {
-        my $dbh = $getter->()
-            or next;
+    $dbs->foreach(sub {
+        my $db = shift;
+        my $dbh = $db->dbh or next;
 
         my $funcmap = $dbh->selectall_hashref("SELECT funcid, funcname FROM funcmap", "funcid");
 
@@ -94,14 +93,15 @@ sub queues {
             print "  outstanding: $inf->{ct}\n";
             print "  behind_secs: $behind\n";
         }
-    }
+    });
     exit($some_alert ? 1 : 0);
 }
 
 sub errors {
-    #my ($opt_follow, $opt_last, $opt_inlast);
+    my $dbs = shift;
+
     if ($opt_follow) {
-        follow_errors(@_);
+        follow_errors($dbs);
     }
 
     $opt_last = 100 unless $opt_last || $opt_inlast;
@@ -115,15 +115,108 @@ sub errors {
     }
 
     my @rows;
-    foreach my $getter (@_) {
-        my $dbh = $getter->()
+    $dbs->foreach(sub {
+        my $db = shift;
+        my $dbh = $db->dbh
             or next;
 
         my $sth = $dbh->prepare($sql);
         $sth->execute;
         push @rows, $_ while $_ = $sth->fetchrow_hashref;
-    }
+    });
+
     @rows = sort { $a->{error_time} <=> $b->{error_time} } @rows;
-    use Data::Dumper;
-    print Dumper(\@rows);
+    if ($opt_last && @rows > $opt_last) {
+        shift @rows while @rows > $opt_last;
+    }
+
+    foreach my $r (@rows) {
+        print_error($r);
+    }
+
+}
+
+sub follow_errors {
+    my $dbs = shift;
+
+    while (1) {
+        $dbs->foreach(sub {
+            my $db = shift;
+            my $dbh = $db->dbh
+                or next;
+            my $notes = $db->notes;
+
+            my $lastmax = $notes->{lastmax} || time();
+            my $seen    = $notes->{seen}    ||= {};
+
+            my $sth = $dbh->prepare("SELECT error_time, jobid, message FROM error WHERE error_time >= ? ORDER BY error_time");
+            $sth->execute($lastmax);
+            my @errors;
+            push @errors, $_ while $_ = $sth->fetchrow_hashref;
+
+            my $newmax = $lastmax;
+            foreach my $r (@errors) {
+                my $sig = join(",", map { $_, $r->{$_} } sort keys %$r);
+                next if $seen->{$sig};
+                $seen->{$sig} = $r->{error_time};
+                print_error($r);
+                $newmax = $r->{error_time} if $r->{error_time} > $newmax;
+            }
+
+            $notes->{lastmax} = $newmax;
+
+            foreach my $sig (keys %$seen) {
+                my $time = $seen->{$sig};
+                delete $seen->{$sig} if $time < $newmax;
+            }
+
+        });
+        sleep 1;
+    }
+}
+
+sub print_error {
+    my $r = shift;
+    my $msg = $r->{message};
+    $msg =~ s/\s+$//g;
+    printf scalar(localtime($r->{error_time})) . " [$r->{jobid}]: $msg\n";
+}
+
+
+package DBSet;
+
+sub new {
+    return bless [];
+}
+
+sub add {
+    my ($self, $db) = @_;
+    push @$self, $db;
+}
+
+sub foreach {
+    my ($self, $cb) = @_;
+    foreach my $dbh (@$self) {
+        $cb->($dbh);
+    }
+}
+
+package DBHandle;
+
+sub new {
+    my ($class, $dbinf) = @_;
+    return bless $dbinf, $class;
+}
+
+sub notes {
+    my $self = shift;
+    return $self->{notes} ||= {};
+}
+
+# returns DBI handle
+sub dbh {
+    my $self = shift;
+    return $self->{_dbh} ||=
+        DBI->connect($self->{dsn}, $self->{user}, $self->{pass})
+
 }
