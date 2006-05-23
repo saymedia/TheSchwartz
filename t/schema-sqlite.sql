@@ -14,7 +14,7 @@ CREATE TABLE job (
         grabbed_until   INTEGER UNSIGNED,
         priority        SMALLINT UNSIGNED,
         coalesce        VARCHAR(255),
-        UNIQUE(uniqkey)
+        UNIQUE(funcid,uniqkey)
 );
 
 CREATE TABLE error (

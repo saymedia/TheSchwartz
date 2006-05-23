@@ -15,7 +15,8 @@ CREATE TABLE job (
         priority        SMALLINT UNSIGNED,
         coalesce        VARCHAR(255),
         INDEX (funcid, run_after),
-        UNIQUE(uniqkey)
+        UNIQUE(funcid, uniqkey),
+        INDEX (funcid, coalesce)
 );
 
 CREATE TABLE note (
