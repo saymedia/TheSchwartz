@@ -7,6 +7,7 @@ use fields qw( databases retry_seconds dead_dsns retry_at
                all_abilities current_abilities );
 
 use Carp qw( croak );
+use Data::ObjectDriver::Errors;
 use Data::ObjectDriver::Driver::DBI;
 use Digest::MD5 qw( md5_hex );
 use List::Util qw( shuffle );
@@ -15,6 +16,9 @@ use TheSchwartz::Job;
 use TheSchwartz::JobHandle;
 
 use constant RETRY_DEFAULT => 30;
+use constant OK_ERRORS => { map { $_ => 1 }
+    Data::ObjectDriver::Errors->UNIQUE_CONSTRAINT,
+};
 
 sub new {
     my TheSchwartz $client = shift;
@@ -127,7 +131,9 @@ sub find_job_for_workers {
                 }, { limit => 1 });
         };
         if ($@) {
-            $client->mark_database_as_dead($hashdsn);
+            unless (OK_ERRORS->{ $driver->last_error }) {
+                $client->mark_database_as_dead($hashdsn);
+            }
         }
 
         if ($job) {
@@ -180,7 +186,9 @@ sub insert_job_to_driver {
         $driver->insert($job);
     };
     if ($@) {
-        $client->mark_database_as_dead($hashdsn);
+        unless (OK_ERRORS->{ $driver->last_error }) {
+            $client->mark_database_as_dead($hashdsn);
+        }
     } elsif ($job->jobid) {
         ## We inserted the job successfully!
         ## Attach a handle to the job, and return the handle.
