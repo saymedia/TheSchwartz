@@ -93,6 +93,7 @@ sub setup_dbs {
         my @sql = load_sql($schema);
         for my $sql (@sql) {
             $sql =~ s!^\s*create\s+table\s+(\w+)!CREATE TABLE ${pfx}$1!i;
+            $sql .= " ENGINE=INNODB\n" if $ENV{USE_MYSQL};
             $dbh->do($sql);
         }
         $dbh->disconnect;

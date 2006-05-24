@@ -133,13 +133,13 @@ sub find_job_for_workers {
                     funcid        => \@ids,
                     run_after     => { op => '<=', value => time },
                     grabbed_until => [
-                        \'IS NULL',
+                        \ 'IS NULL',
                         { op => '<=', value => time },
                     ],
                 }, { limit => 1 });
         };
         if ($@) {
-            unless (OK_ERRORS->{ $driver->last_error }) {
+            unless (OK_ERRORS->{ $driver->last_error || 0 }) {
                 $client->mark_database_as_dead($hashdsn);
             }
         }
@@ -194,7 +194,7 @@ sub insert_job_to_driver {
         $driver->insert($job);
     };
     if ($@) {
-        unless (OK_ERRORS->{ $driver->last_error }) {
+        unless (OK_ERRORS->{ $driver->last_error || 0 }) {
             $client->mark_database_as_dead($hashdsn);
         }
     } elsif ($job->jobid) {
@@ -211,17 +211,50 @@ sub insert_job_to_driver {
     return undef;
 }
 
+sub insert_jobs {
+    my TheSchwartz $client = shift;
+    my (@jobs) = @_;
+
+    ## Try each of the databases that are registered with $client, in
+    ## random order. If we successfully create the job, exit the loop.
+    my @handles;
+  DATABASE:
+    for my $hashdsn ($client->shuffled_databases) {
+        ## If the database is dead, skip it.
+        next if $client->is_database_dead($hashdsn);
+
+        my $driver = $client->driver_for($hashdsn);
+        $driver->begin_work;
+        for my $j (@jobs) {
+            my $h = $client->insert_job_to_driver($j, $driver, $hashdsn);
+            if ($h) {
+                push @handles, $h;
+            } else {
+                $driver->rollback;
+                @handles = ();
+                next DATABASE;
+            }
+        }
+        last if eval { $driver->commit };
+        @handles = ();
+        next DATABASE;
+    }
+
+    return wantarray ? @handles : scalar @handles;
+}
+
 sub insert {
     my TheSchwartz $client = shift;
-    my($job) = @_;
+    my $job = shift;
+    if (ref($_[0]) eq "TheSchwartz::Job") {
+        croak "Can't insert multiple jobs with method 'insert'\n";
+    }
     unless (ref($job) eq 'TheSchwartz::Job') {
-        $job = TheSchwartz::Job->new_from_array($job, $_[1]);
+        $job = TheSchwartz::Job->new_from_array($job, $_[0]);
     }
 
     ## Try each of the databases that are registered with $client, in
     ## random order. If we successfully create the job, exit the loop.
-    my $dead = $client->{dead_dsns};
-    my $retry = $client->{retry_at};
     for my $hashdsn ($client->shuffled_databases) {
         ## If the database is dead, skip it.
         next if $client->is_database_dead($hashdsn);

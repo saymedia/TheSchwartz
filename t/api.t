@@ -7,9 +7,9 @@ use warnings;
 require 't/lib/db-common.pl';
 
 use TheSchwartz;
-use Test::More tests => 52;
+use Test::More tests => 72;
 
-run_tests(13, sub {
+run_tests(18, sub {
     foreach my $pfx ("", "testprefix_") {
 
         my $client = test_client(dbs      => ['ts1'],
@@ -53,6 +53,40 @@ run_tests(13, sub {
 
         $handle = $client->insert($job);
         isa_ok $handle, 'TheSchwartz::JobHandle';
+
+        # inserting multiple at a time in scalar context
+        {
+            my $job1 = TheSchwartz::Job->new(funcname => 'feedmajor');
+            my $job2 = TheSchwartz::Job->new(funcname => 'feedmajor');
+            my $rv = $client->insert_jobs($job1, $job2);
+            is($rv, 2, "inserted two jobs");
+        }
+
+        # inserting multiple at a time in list context
+        {
+            my $job1 = TheSchwartz::Job->new(funcname => 'feedmajor');
+            my $job2 = TheSchwartz::Job->new(funcname => 'feedmajor');
+            my @handles = $client->insert_jobs($job1, $job2);
+            is(scalar @handles, 2, "inserted two jobs");
+            isa_ok $handles[0], 'TheSchwartz::JobHandle', "got job handle";
+        }
+
+        # inserting multiple with wrong method fails
+        eval {
+            my $job1 = TheSchwartz::Job->new(funcname => 'feedmajor');
+            my $job2 = TheSchwartz::Job->new(funcname => 'feedmajor');
+            my @handles = $client->insert($job1, $job2);
+        };
+        like($@, qr/multiple jobs with method/, "used wrong method");
+
+        # insert multiple that fail
+        {
+            my $job1 = TheSchwartz::Job->new(funcname => 'feedmajor', uniqkey => 'u1');
+            my $job2 = TheSchwartz::Job->new(funcname => 'feedmajor', uniqkey => 'u1');
+            my @handles = $client->insert_jobs($job1, $job2);
+            is(scalar @handles, 0, "failed to insert anything");
+        }
+
 
         teardown_dbs('ts1');
     }
