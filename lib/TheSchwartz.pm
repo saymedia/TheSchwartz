@@ -3,7 +3,7 @@
 package TheSchwartz;
 use strict;
 use fields qw( databases retry_seconds dead_dsns retry_at
-               funcmap_cache
+               funcmap_cache verbose
                all_abilities current_abilities );
 
 use Carp qw( croak );
@@ -28,7 +28,9 @@ sub new {
     croak "databases must be an arrayref if specified"
         unless !exists $args{databases} || ref $args{databases} eq 'ARRAY';
     my $databases = delete $args{databases};
+
     $client->{retry_seconds} = delete $args{retry_seconds} || RETRY_DEFAULT;
+    $client->set_verbose(delete $args{verbose});
 
     croak "unknown options ", join(', ', keys %args) if keys %args;
 
@@ -39,6 +41,12 @@ sub new {
     $client->{funcmap_cache} = {};
 
     return $client;
+}
+
+sub debug {
+    my TheSchwartz $client = shift;
+    return unless $client->{verbose};
+    $client->{verbose}->($_[0]);
 }
 
 sub hash_databases {
@@ -299,6 +307,13 @@ sub work_once {
         $job = $client->find_job_for_workers;
     }
 
+    my $class = $job ? $job->funcname : undef;
+    if ($job) {
+        $client->debug("TheSchwartz::work_once got job of class '$class'");
+    } else {
+        $client->debug("TheSchwartz::work_once found no jobs");
+    }
+
     ## If we still don't have anything, return.
     return unless $job;
 
@@ -306,7 +321,6 @@ sub work_once {
     ## from our list of current abilities. So the next time we look for a
     ## we'll find a job for a different funcname. This prevents starvation of
     ## high funcid values because of the way MySQL's indexes work.
-    my $class = $job->funcname;
     $client->temporarily_remove_ability($class);
 
     $class->work_safely($job);
@@ -349,6 +363,26 @@ sub _funcmap_cache {
         $client->{funcmap_cache}{$hashdsn} = $cache;
     }
     return $client->{funcmap_cache}{$hashdsn};
+}
+
+# accessors
+
+sub verbose {
+    my TheSchwartz $client = shift;
+    return $client->{verbose};
+}
+
+sub set_verbose {
+    my TheSchwartz $client = shift;
+    my $logger = shift;   # or non-coderef to just print to stderr
+    if ($logger && ref $logger ne "CODE") {
+        $logger = sub {
+            my $msg = shift;
+            $msg =~ s/\s+$//;
+            print STDERR "$msg\n";
+        };
+    }
+    $client->{verbose} = $logger;
 }
 
 1;

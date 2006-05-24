@@ -18,14 +18,14 @@ sub retry_delay { 0 }
 sub grab_for { 60 * 60 }   ## 1 hour
 
 sub work_safely {
-    my $worker = shift;
-    my($job) = @_;
+    my ($class, $job) = @_;
+    my $client = $job->handle->client;
     my $res;
-#    warn "Working on $worker...\n";
+
+    $client->debug("Working on $class ...");
     eval {
-        $res = $worker->work($job);
+        $res = $class->work($job);
     };
-#    warn "res = $res, error = $@\n";
 
     if ($@) {
         $job->failed($@);

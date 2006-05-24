@@ -124,6 +124,7 @@ sub did_something {
 
 sub completed {
     my $job = shift;
+    $job->handle->client->debug("job completed");
     $job->did_something(1);
     $job->set_exit_status(0);
     $job->driver->remove($job);
@@ -132,6 +133,8 @@ sub completed {
 sub failed {
     my $job = shift;
     my($msg) = @_;
+    $job->handle->client->debug("job failed: " . ($msg || "<no message>"));
+
     $job->did_something(1);
 
     ## Mark the failure in the error table.
@@ -166,6 +169,8 @@ sub replace_with {
     my $client = $handle->client;
     my $hashdsn = $handle->dsn_hashed;
     my $driver = $job->driver;
+
+    $client->debug("replacing job with " . (scalar @jobs) . " other jobs");
 
     ## Start a transaction.
     $driver->begin_work;
