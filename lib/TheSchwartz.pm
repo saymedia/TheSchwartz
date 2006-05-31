@@ -53,7 +53,7 @@ sub hash_databases {
     my TheSchwartz $client = shift;
     my($list) = @_;
     for my $ref (@$list) {
-        my $full = join '|', map { $ref->{$_} } qw( dsn user pass );
+        my $full = join '|', map { $ref->{$_} || '' } qw( dsn user pass );
         $client->{databases}{ md5_hex($full) } = $ref;
     }
 }
