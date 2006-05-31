@@ -1,13 +1,18 @@
+# $Id$
 
 use 5.008;
-use ExtUtils::MakeMaker;
-# See lib/ExtUtils/MakeMaker.pm for details of how to influence
-# the contents of the Makefile that is written.
-WriteMakefile(
-              'NAME'=> 'TheSchwartz',
-              'VERSION' => '0.01',
-              'PREREQ_PM'=> {
-                Data::ObjectDriver => '0.02',
-                            }, # e.g., Module::Name => 1.1
-               AUTHOR     => 'Brad Fitzpatrick <brad@danga.com>, Ben Trorr <btrott@sixapart.com>',
-             );
+use inc::Module::Install;
+
+name('TheSchwartz');
+version_from('lib/TheSchwartz.pm');
+author('Six Apart <cpan@sixapart.com>');
+license('perl');
+
+requires('Data::ObjectDriver' => '0.02');
+requires('Digest::MD5');
+requires('Storable');
+
+install_script('bin/schwartzmon');
+
+auto_install();
+WriteAll();
