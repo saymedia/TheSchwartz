@@ -1,0 +1,64 @@
+#!/usr/bin/perl -w
+use strict;
+
+# $Id$
+
+## Nagios plugin to check the queue depth of a Schwartz database.
+
+use utils qw( %ERRORS $TIMEOUT );
+use Getopt::Long qw( :config no_ignore_case );
+use DBI;
+
+use constant QUEUE_CRITICAL => 100;
+use constant QUEUE_WARNING  => 30;
+
+GetOptions(
+    'h|help!'     => \my($help),
+    'v|verbose'   => \my($verbose),
+    'dsn=s'       => \my($dsn),
+    'user=s'      => \my($user),
+    'password=s'  => \my($pass),
+);
+
+if ($help) {
+    print "$0 --dsn <database-dsn> --user <user> --password <password>";
+    exit $ERRORS{OK};
+}
+
+unless ($dsn && $user) {
+    print <<USAGE;
+You have to supply a database DSN and username.
+
+Example:
+
+    $0 --dsn dbi:mysql:host=schwartz-db1;dbname=theschwartz_comet --user comet
+USAGE
+    exit $ERRORS{UNKNOWN};
+}
+
+sub exit_with {
+    my($code, $msg) = @_;
+    $msg = $msg ? ' - ' . $msg : '';
+    print "TheSchwartz $dsn $code$msg";
+    exit $ERRORS{$code};
+}
+
+my $dbh = DBI->connect($dsn, $user, $pass)
+    or exit_with 'CRITICAL', "Can't connect to $dsn: $DBI::errstr";
+
+my $inf = $dbh->selectrow_arrayref(<<SQL, undef, time);
+SELECT COUNT(*)
+FROM job
+WHERE run_after <= ?
+SQL
+unless ($inf && defined $inf->[0]) {
+    exit_with 'CRITICAL', "Failed getting job count: " . $dbh->errstr;
+}
+
+if ($inf->[0] < QUEUE_WARNING) {
+    exit_with 'OK';
+} elsif ($inf->[0] < QUEUE_CRITICAL) {
+    exit_with 'WARNING', "Schwartz queue depth is $inf->[0]";
+} else {
+    exit_with 'CRITICAL', "Schwartz queue depth is $inf->[0]";
+}
