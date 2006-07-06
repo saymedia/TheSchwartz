@@ -20,8 +20,9 @@ use constant OK_ERRORS => { map { $_ => 1 }
     Data::ObjectDriver::Errors->UNIQUE_CONSTRAINT,
 };
 
-# test harness hook
+# test harness hooks
 our $T_AFTER_GRAB_SELECT_BEFORE_UPDATE;
+our $T_LOST_RACE;
 
 ## Number of jobs to fetch at a time in find_job_for_workers.
 our $FIND_JOB_BATCH_SIZE = 50;
@@ -168,6 +169,7 @@ sub find_job_for_workers {
             if ($driver->update($job, { grabbed_until => $old_grabbed_until }) < 1) {
                 ## We lost the race to get this particular job--another worker must
                 ## have got it and already updated it. Move on to the next job.
+                $T_LOST_RACE->() if $T_LOST_RACE;
                 next JOB;
             }
 
