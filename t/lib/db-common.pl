@@ -7,13 +7,22 @@ use Carp qw(croak);
 sub run_tests {
     my ($n, $code) = @_;
 
-    # MySQL
+    run_tests_mysql($n, $code);
+    run_tests_sqlite($n, $code);
+}
+
+sub run_tests_mysql {
+    my ($n, $code) = @_;
   SKIP: {
       local $ENV{USE_MYSQL} = 1;
       my $dbh = eval { mysql_dbh() };
       skip "MySQL not accessible as root on localhost", $n if $@;
       $code->();
   }
+}
+
+sub run_tests_sqlite {
+    my ($n, $code) = @_;
 
     # SQLite
   SKIP: {
@@ -21,7 +30,6 @@ sub run_tests {
       skip "SQLite not installed", $n if $@;
       $code->();
   }
-
 }
 
 sub test_client {
