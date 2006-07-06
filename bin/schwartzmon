@@ -67,7 +67,7 @@ my $dbset = DBSet->new;
 
 $dsn ||= "DBI:mysql:$dbname";
 
-$dbset->add(DBHandle->new({ dsn => "DBI:mysql:$dbname", user => $user, pass => $pass}));
+$dbset->add(DBHandle->new({ dsn => $dsn, user => $user, pass => $pass}));
 
 if ($cmd eq "queues") { queues($dbset); }
 if ($cmd eq "errors") { errors($dbset); }
