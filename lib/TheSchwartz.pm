@@ -23,6 +23,9 @@ use constant OK_ERRORS => { map { $_ => 1 }
 # test harness hook
 our $T_AFTER_GRAB_SELECT_BEFORE_UPDATE;
 
+## Number of jobs to fetch at a time in find_job_for_workers.
+our $FIND_JOB_BATCH_SIZE = 50;
+
 sub new {
     my TheSchwartz $client = shift;
     my %args = @_;
@@ -119,12 +122,8 @@ sub find_job_for_workers {
 
         my $driver = $client->driver_for($hashdsn);
 
-        my $job;
+        my @jobs;
         eval {
-            ## Start a transaction, because if we find a job we'll need to
-            ## update it.
-            $driver->begin_work;
-
             ## Search for jobs in this database where:
             ## 1. funcname is in the list of abilities this $client supports;
             ## 2. the job is scheduled to be run (run_after is in the past);
@@ -133,11 +132,11 @@ sub find_job_for_workers {
             my @ids = map { $client->funcname_to_id($driver, $hashdsn, $_) }
                       @$worker_classes;
             my $now = time;
-            ($job) = $driver->search('TheSchwartz::Job' => {
+            @jobs = $driver->search('TheSchwartz::Job' => {
                     funcid        => \@ids,
                     run_after     => { op => '<=', value => $now },
                     grabbed_until => { op => '<=', value => $now },
-                }, { limit => 1 });
+                }, { limit => $FIND_JOB_BATCH_SIZE });
         };
         if ($@) {
             unless (OK_ERRORS->{ $driver->last_error || 0 }) {
@@ -148,20 +147,29 @@ sub find_job_for_workers {
         # for test harness race condition testing
         $T_AFTER_GRAB_SELECT_BEFORE_UPDATE->() if $T_AFTER_GRAB_SELECT_BEFORE_UPDATE;
 
-        if ($job) {
-            ## Got a job!
+        ## If we didn't find any jobs, move on to the next database.
+        next unless @jobs;
 
+        ## Got some jobs! Randomize them to avoid contention between workers.
+        @jobs = shuffle(@jobs);
+
+        JOB:
+        while (my $job = shift @jobs) {
             ## Convert the funcid to a funcname, based on this database's map.
             $job->funcname( $client->funcid_to_name($driver, $hashdsn, $job->funcid) );
 
             ## Update the job's grabbed_until column so that
             ## no one else takes it.
             my $worker_class = $job->funcname;
-            $job->grabbed_until(time + $worker_class->grab_for);
+            my $old_grabbed_until = $job->grabbed_until;
+            $job->grabbed_until(time + ($worker_class->grab_for || 1));
 
             ## Update the job in the database, and end the transaction.
-            $driver->update($job);
-            $driver->commit;
+            if ($driver->update($job, { grabbed_until => $old_grabbed_until }) < 1) {
+                ## We lost the race to get this particular job--another worker must
+                ## have got it and already updated it. Move on to the next job.
+                next JOB;
+            }
 
             ## Now prepare the job, and return it.
             my $handle = TheSchwartz::JobHandle->new({
@@ -172,10 +180,6 @@ sub find_job_for_workers {
             $job->handle($handle);
             return $job;
         }
-
-        ## If we didn't find a job, we need to commit to end the
-        ## transaction in this database.
-        $driver->commit;
     }
 }
 
