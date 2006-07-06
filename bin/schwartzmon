@@ -19,6 +19,10 @@ Possible commands:
 
 Global options:
    --job=<JOBNAME>    Only look at one specific job name.  Else all are considered.
+   --user=<user>      Connect to the database as this user
+   --pass=<pass>      Connect to the database with this password
+   --database=<db>    Connect to this database
+   --dsn=<dsn>        Connect to the database using this DSN
 
 Options for 'queues' command:
    --maxage=<n>       Don't complain if age of overdue job queue is <= 'n'
@@ -41,14 +45,18 @@ USAGE
 }
 
 my $opt_help = 0;
-my ($opt_follow, $opt_last, $opt_inlast);
+my ($opt_follow, $opt_last, $opt_inlast, $dsn);
 usage() unless GetOptions("job=s" => \$job,
                           "maxage=i" => \$max_age,
                           "maxcount=i" => \$max_count,
                           "help"       => \$opt_help,
                           "follow|f"   => \$opt_follow,
                           "last=i"     => \$opt_last,
-                          "inlast=i"     => \$opt_inlast,
+                          "inlast=i"   => \$opt_inlast,
+                          "user=s"     => \$user,
+                          "pass=s"     => \$pass,
+                          "dsn=s"      => \$dsn,
+                          "database=s" => \$dbname,
                           );
 usage() if $opt_help;
 
@@ -56,6 +64,9 @@ my $cmd = shift || "queues";
 usage() unless $cmd =~ /^queues|errors$/;
 
 my $dbset = DBSet->new;
+
+$dsn ||= "DBI:mysql:$dbname";
+
 $dbset->add(DBHandle->new({ dsn => "DBI:mysql:$dbname", user => $user, pass => $pass}));
 
 if ($cmd eq "queues") { queues($dbset); }
