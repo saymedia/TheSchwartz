@@ -20,6 +20,9 @@ use constant OK_ERRORS => { map { $_ => 1 }
     Data::ObjectDriver::Errors->UNIQUE_CONSTRAINT,
 };
 
+# test harness hook
+our $T_AFTER_GRAB_SELECT_BEFORE_UPDATE;
+
 sub new {
     my TheSchwartz $client = shift;
     my %args = @_;
@@ -143,6 +146,9 @@ sub find_job_for_workers {
                 $client->mark_database_as_dead($hashdsn);
             }
         }
+
+        # for test harness race condition testing
+        $T_AFTER_GRAB_SELECT_BEFORE_UPDATE->() if $T_AFTER_GRAB_SELECT_BEFORE_UPDATE;
 
         if ($job) {
             ## Got a job!
