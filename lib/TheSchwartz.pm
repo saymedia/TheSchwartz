@@ -128,17 +128,15 @@ sub find_job_for_workers {
             ## Search for jobs in this database where:
             ## 1. funcname is in the list of abilities this $client supports;
             ## 2. the job is scheduled to be run (run_after is in the past);
-            ## 3. no one else is working on the job (grabbed_until is NULL or
+            ## 3. no one else is working on the job (grabbed_until is in
             ##    in the past).
             my @ids = map { $client->funcname_to_id($driver, $hashdsn, $_) }
                       @$worker_classes;
+            my $now = time;
             ($job) = $driver->search('TheSchwartz::Job' => {
                     funcid        => \@ids,
-                    run_after     => { op => '<=', value => time },
-                    grabbed_until => [
-                        \ 'IS NULL',
-                        { op => '<=', value => time },
-                    ],
+                    run_after     => { op => '<=', value => $now },
+                    grabbed_until => { op => '<=', value => $now },
                 }, { limit => 1 });
         };
         if ($@) {

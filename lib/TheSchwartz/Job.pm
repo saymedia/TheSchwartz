@@ -54,6 +54,7 @@ sub new {
         }
     }
     $param{run_after} ||= time;
+    $param{grabbed_until} ||= 0;
     for my $key (keys %param) {
         $job->$key($param{$key});
     }
@@ -148,7 +149,7 @@ sub failed {
         if (my $delay = $class->retry_delay($failures)) {
             $job->run_after(time + $delay);
         }
-        $job->grabbed_until(undef);
+        $job->grabbed_until(0);
         $job->driver->update($job);
     } else {
 ## TODO how to get the proper exit status?
