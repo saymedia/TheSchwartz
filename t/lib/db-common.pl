@@ -11,12 +11,18 @@ sub run_tests {
     run_tests_sqlite($n, $code);
 }
 
-sub run_tests_mysql {
+sub run_tests_innodb {
     my ($n, $code) = @_;
+    run_tests_mysql($n, $code, 1);
+}
+
+sub run_tests_mysql {
+    my ($n, $code, $innodb) = @_;
   SKIP: {
       local $ENV{USE_MYSQL} = 1;
       my $dbh = eval { mysql_dbh() };
       skip "MySQL not accessible as root on localhost", $n if $@;
+      skip "InnoDB not available on localhost's MySQL", $n if $innodb && ! has_innodb($dbh);
       $code->();
   }
 }
@@ -53,6 +59,18 @@ sub test_client {
                                               prefix => $pfx,
                                           } } @$dbs
                                           ]);
+}
+
+sub has_innodb {
+    my $dbh = shift;
+    my $tmpname = "test_to_see_if_innoavail";
+    $dbh->do("CREATE TABLE IF NOT EXISTS $tmpname (i int) ENGINE=INNODB")
+        or return 0;
+    my @row = $dbh->selectrow_array("SHOW CREATE TABLE $tmpname");
+    my $row = join(' ', @row);
+    my $has_it = ($row =~ /=InnoDB/i);
+    $dbh->do("DROP TABLE $tmpname");
+    return $has_it;
 }
 
 sub schema_file {
