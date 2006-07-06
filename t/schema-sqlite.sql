@@ -10,8 +10,8 @@ CREATE TABLE job (
         arg             MEDIUMBLOB,
         uniqkey         VARCHAR(255) NULL,
         insert_time     INTEGER UNSIGNED,
-        run_after       INTEGER UNSIGNED,
-        grabbed_until   INTEGER UNSIGNED,
+        run_after       INTEGER UNSIGNED NOT NULL,
+        grabbed_until   INTEGER UNSIGNED NOT NULL,
         priority        SMALLINT UNSIGNED,
         coalesce        VARCHAR(255),
         UNIQUE(funcid,uniqkey)
