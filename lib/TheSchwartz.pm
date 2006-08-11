@@ -112,6 +112,55 @@ sub lookup_job {
     return $job;
 }
 
+sub find_job_with_coalescing_prefix {
+    my TheSchwartz $client = shift;
+    my ($funcname, $coval) = @_;
+    $coval .= "%";
+    return $client->_find_job_with_coalescing('LIKE', $funcname, $coval);
+}
+
+sub find_job_with_coalescing_value {
+    my TheSchwartz $client = shift;
+    return $client->_find_job_with_coalescing('=', @_);
+}
+
+sub _find_job_with_coalescing {
+    my TheSchwartz $client = shift;
+    my ($op, $funcname, $coval) = @_;
+
+    for my $hashdsn ($client->shuffled_databases) {
+        ## If the database is dead, skip it
+        next if $client->is_database_dead($hashdsn);
+
+        my $driver = $client->driver_for($hashdsn);
+
+        my @jobs;
+        eval {
+            ## Search for jobs in this database where:
+            ## 1. funcname is in the list of abilities this $client supports;
+            ## 2. the job is scheduled to be run (run_after is in the past);
+            ## 3. no one else is working on the job (grabbed_until is in
+            ##    in the past).
+            my $funcid = $client->funcname_to_id($driver, $hashdsn, $funcname);
+            my $now = time;
+            @jobs = $driver->search('TheSchwartz::Job' => {
+                    funcid        => $funcid,
+                    run_after     => { op => '<=', value => $now },
+                    grabbed_until => { op => '<=', value => $now },
+                    coalesce      => { op => $op, value => $coval },
+                }, { limit => $FIND_JOB_BATCH_SIZE });
+        };
+        if ($@) {
+            unless (OK_ERRORS->{ $driver->last_error || 0 }) {
+                $client->mark_database_as_dead($hashdsn);
+            }
+        }
+
+        my $handle = $client->_grab_a_job($hashdsn, @jobs);
+        return $handle if $handle;
+    }
+}
+
 sub find_job_for_workers {
     my TheSchwartz $client = shift;
     my($worker_classes) = @_;
@@ -148,42 +197,51 @@ sub find_job_for_workers {
         # for test harness race condition testing
         $T_AFTER_GRAB_SELECT_BEFORE_UPDATE->() if $T_AFTER_GRAB_SELECT_BEFORE_UPDATE;
 
-        ## If we didn't find any jobs, move on to the next database.
-        next unless @jobs;
-
-        ## Got some jobs! Randomize them to avoid contention between workers.
-        @jobs = shuffle(@jobs);
-
-        JOB:
-        while (my $job = shift @jobs) {
-            ## Convert the funcid to a funcname, based on this database's map.
-            $job->funcname( $client->funcid_to_name($driver, $hashdsn, $job->funcid) );
-
-            ## Update the job's grabbed_until column so that
-            ## no one else takes it.
-            my $worker_class = $job->funcname;
-            my $old_grabbed_until = $job->grabbed_until;
-            $job->grabbed_until(time + ($worker_class->grab_for || 1));
-
-            ## Update the job in the database, and end the transaction.
-            if ($driver->update($job, { grabbed_until => $old_grabbed_until }) < 1) {
-                ## We lost the race to get this particular job--another worker must
-                ## have got it and already updated it. Move on to the next job.
-                $T_LOST_RACE->() if $T_LOST_RACE;
-                next JOB;
-            }
-
-            ## Now prepare the job, and return it.
-            my $handle = TheSchwartz::JobHandle->new({
-                    dsn_hashed => $hashdsn,
-                    jobid      => $job->jobid,
-                });
-            $handle->client($client);
-            $job->handle($handle);
-            return $job;
-        }
+        my $handle = $client->_grab_a_job($hashdsn, @jobs);
+        return $handle if $handle;
     }
 }
+
+sub _grab_a_job {
+    my TheSchwartz $client = shift;
+    my $hashdsn = shift;
+    my $driver = $client->driver_for($hashdsn);
+
+    ## Got some jobs! Randomize them to avoid contention between workers.
+    my @jobs = shuffle(@_);
+
+  JOB:
+    while (my $job = shift @jobs) {
+        ## Convert the funcid to a funcname, based on this database's map.
+        $job->funcname( $client->funcid_to_name($driver, $hashdsn, $job->funcid) );
+
+        ## Update the job's grabbed_until column so that
+        ## no one else takes it.
+        my $worker_class = $job->funcname;
+        my $old_grabbed_until = $job->grabbed_until;
+        $job->grabbed_until(time + ($worker_class->grab_for || 1));
+
+        ## Update the job in the database, and end the transaction.
+        if ($driver->update($job, { grabbed_until => $old_grabbed_until }) < 1) {
+            ## We lost the race to get this particular job--another worker must
+            ## have got it and already updated it. Move on to the next job.
+            $T_LOST_RACE->() if $T_LOST_RACE;
+            next JOB;
+        }
+
+        ## Now prepare the job, and return it.
+        my $handle = TheSchwartz::JobHandle->new({
+            dsn_hashed => $hashdsn,
+            jobid      => $job->jobid,
+        });
+        $handle->client($client);
+        $job->handle($handle);
+        return $job;
+    }
+
+    return undef;
+}
+
 
 sub shuffled_databases {
     my TheSchwartz $client = shift;
