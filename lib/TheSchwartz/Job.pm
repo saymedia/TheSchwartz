@@ -131,6 +131,10 @@ sub debug {
 sub completed {
     my $job = shift;
     $job->debug("job completed");
+    if ($job->did_something) {
+        $job->debug("can't call 'completed' on already finished job");
+        return 0;
+    }
     $job->did_something(1);
     $job->set_exit_status(0);
     $job->driver->remove($job);
@@ -141,6 +145,10 @@ sub failed {
     my($msg) = @_;
     $job->debug("job failed: " . ($msg || "<no message>"));
 
+    if ($job->did_something) {
+        $job->debug("can't call 'failed' on already finished job");
+        return 0;
+    }
     $job->did_something(1);
 
     ## Mark the failure in the error table.
@@ -169,7 +177,12 @@ sub failed {
 sub replace_with {
     my $job = shift;
     my(@jobs) = @_;
-    $job->did_something(1);
+
+    if ($job->did_something) {
+        $job->debug("can't call 'replace_with' on already finished job");
+        return 0;
+    }
+    # Note: we don't set 'did_something' here because completed does it down below.
 
     ## The new jobs @jobs should be inserted into the same database as $job,
     ## which they're replacing. So get a driver for the database that $job
@@ -200,6 +213,12 @@ sub replace_with {
 
     ## Looks like it's all ok, so commit.
     $driver->commit;
+}
+
+sub set_as_current {
+    my $job = shift;
+    my $client = $job->handle->client;
+    $client->set_current_job($job);
 }
 
 1;

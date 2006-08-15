@@ -23,16 +23,20 @@ sub work_safely {
     my $res;
 
     $job->debug("Working on $class ...");
+    $job->set_as_current;
     eval {
         $res = $class->work($job);
     };
 
+    my $cjob = $client->current_job;
     if ($@) {
-        $job->failed($@);
+        $cjob->failed($@);
     }
-    unless ($job->did_something) {
-        $job->failed('Job did not explicitly complete, fail, or get replaced');
+    unless ($cjob->did_something) {
+        $cjob->failed('Job did not explicitly complete, fail, or get replaced');
     }
+
+    # FIXME: this return value is kinda useless/undefined.  should we even return anything?  any callers? -brad
     return $res;
 }
 

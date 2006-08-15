@@ -4,7 +4,9 @@ package TheSchwartz;
 use strict;
 use fields qw( databases retry_seconds dead_dsns retry_at
                funcmap_cache verbose
-               all_abilities current_abilities );
+               all_abilities current_abilities
+               current_job
+               );
 
 use Carp qw( croak );
 use Data::ObjectDriver::Errors;
@@ -484,6 +486,17 @@ sub set_verbose {
         };
     }
     $client->{verbose} = $logger;
+}
+
+# current job being worked.  so if something dies, work_safely knows which to mark as dead.
+sub current_job {
+    my TheSchwartz $client = shift;
+    $client->{current_job};
+}
+
+sub set_current_job {
+    my TheSchwartz $client = shift;
+    $client->{current_job} = shift;
 }
 
 1;
