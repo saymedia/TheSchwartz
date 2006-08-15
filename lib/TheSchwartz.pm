@@ -53,7 +53,7 @@ sub new {
 sub debug {
     my TheSchwartz $client = shift;
     return unless $client->{verbose};
-    $client->{verbose}->($_[0]);
+    $client->{verbose}->(@_);  # ($msg, $job)   but $job is optional
 }
 
 sub hash_databases {
@@ -410,7 +410,7 @@ sub work_once {
 
     my $class = $job ? $job->funcname : undef;
     if ($job) {
-        $client->debug("TheSchwartz::work_once got job of class '$class'");
+        $job->debug("TheSchwartz::work_once got job of class '$class'");
     } else {
         $client->debug("TheSchwartz::work_once found no jobs");
     }

@@ -123,9 +123,14 @@ sub did_something {
     return $job->{__did_something};
 }
 
+sub debug {
+    my ($job, $msg) = @_;
+    $job->handle->client->debug($msg, $job);
+}
+
 sub completed {
     my $job = shift;
-    $job->handle->client->debug("job completed");
+    $job->debug("job completed");
     $job->did_something(1);
     $job->set_exit_status(0);
     $job->driver->remove($job);
@@ -134,7 +139,7 @@ sub completed {
 sub failed {
     my $job = shift;
     my($msg) = @_;
-    $job->handle->client->debug("job failed: " . ($msg || "<no message>"));
+    $job->debug("job failed: " . ($msg || "<no message>"));
 
     $job->did_something(1);
 
@@ -145,7 +150,10 @@ sub failed {
     ## update the run_after if necessary, but keep the job around.
     my $class = $job->funcname;
     my $failures = $job->failures;
-    if ($class->max_retries >= $failures) {
+    my $max_retries = $class->max_retries;
+    $job->debug("considering retry.  is max_retries of $max_retries >= failures of $failures?");
+
+    if ($max_retries >= $failures) {
         if (my $delay = $class->retry_delay($failures)) {
             $job->run_after(time + $delay);
         }
@@ -171,7 +179,7 @@ sub replace_with {
     my $hashdsn = $handle->dsn_hashed;
     my $driver = $job->driver;
 
-    $client->debug("replacing job with " . (scalar @jobs) . " other jobs");
+    $job->debug("replacing job with " . (scalar @jobs) . " other jobs");
 
     ## Start a transaction.
     $driver->begin_work;

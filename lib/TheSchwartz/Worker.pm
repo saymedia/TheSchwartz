@@ -22,7 +22,7 @@ sub work_safely {
     my $client = $job->handle->client;
     my $res;
 
-    $client->debug("Working on $class ...");
+    $job->debug("Working on $class ...");
     eval {
         $res = $class->work($job);
     };
