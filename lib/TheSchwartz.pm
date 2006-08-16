@@ -157,26 +157,24 @@ returns as many jobs as there is up to amount of databases * FIND_JOB_BATCH_SIZE
 
 sub list_jobs {
     my TheSchwartz $client = shift;
-    my ($funcname, $run_after, $grabbed_until, $op, $coval, $want_handle) = @_;
+    my $arg = shift;
     my @options;
-    push @options, run_after     => { op => '<=', value => $run_after }     if $run_after;
-    push @options, grabbed_until => { op => '<=', value => $grabbed_until } if $grabbed_until;
+    push @options, run_after     => { op => '<=', value => $arg->{run_after} }     if exists $arg->{run_after};
+    push @options, grabbed_until => { op => '<=', value => $arg->{grabbed_unti} } if exists $arg->{grabbed_until};
+    die "No funcname" unless exists $arg->{funcname};
 
-
-    if ($coval) {
-        $op ||= '=';
-        push @options, coalesce => { op => $op, value => $coval};
+    if ($arg->{coalesce}) {
+        $arg->{coalesce_op} ||= '=';
+        push @options, coalesce => { op => $arg->{coalesce_op}, value => $arg->{coalesce}};
     }
-
-
 
     my @jobs;
     for my $hashdsn ($client->shuffled_databases) {
         ## If the database is dead, skip it
         next if $client->is_database_dead($hashdsn);
         my $driver = $client->driver_for($hashdsn);
-        my $funcid = $client->funcname_to_id($driver, $hashdsn, $funcname);
-        if ($want_handle) {
+        my $funcid = $client->funcname_to_id($driver, $hashdsn, $arg->{funcname});
+        if ($arg->{want_handle}) {
             push @jobs, map {
                 my $handle = TheSchwartz::JobHandle->new({
                     dsn_hashed => $hashdsn,
