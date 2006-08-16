@@ -114,6 +114,91 @@ sub lookup_job {
     return $job;
 }
 
+=head2
+
+    list_jobs(funcname, run_after, grabbed_until, coval, want_handle);
+
+=over 4
+
+=item funcname
+
+the name of the function
+
+=item run_after
+
+the value you want to check <= against on the run_after column
+
+=item grabbed_until
+
+the value you want to check <= against on the grabbed_until column
+
+=item op
+
+defaults to '=', set it to whatever you want to compare the coalesce field too
+if you want to search, you can use 'LIKE'
+
+=item coval
+
+coalesce value to search for, if you set op to 'LIKE' you can use '%' here,
+do remember that '%' searches anchored at the beginning of the string are
+much faster since it is can do a btree index lookup
+
+=item want_handle
+
+if you want all your jobs to be set up using a handle
+
+=back
+
+It is important to remember that this function doesnt lock anything, it just
+returns as many jobs as there is up to amount of databases * FIND_JOB_BATCH_SIZE
+
+=cut
+
+
+sub list_jobs {
+    my TheSchwartz $client = shift;
+    my ($funcname, $run_after, $grabbed_until, $op, $coval, $want_handle) = @_;
+    my @options;
+    push @options, run_after     => { op => '<=', value => $run_after }     if $run_after;
+    push @options, grabbed_until => { op => '<=', value => $grabbed_until } if $grabbed_until;
+
+
+    if ($coval) {
+        $op ||= '=';
+        push @options, coalesce => { op => $op, value => $coval};
+    }
+
+
+
+    my @jobs;
+    for my $hashdsn ($client->shuffled_databases) {
+        ## If the database is dead, skip it
+        next if $client->is_database_dead($hashdsn);
+        my $driver = $client->driver_for($hashdsn);
+        my $funcid = $client->funcname_to_id($driver, $hashdsn, $funcname);
+        if ($want_handle) {
+            push @jobs, map {
+                my $handle = TheSchwartz::JobHandle->new({
+                    dsn_hashed => $hashdsn,
+                    client     => $client,
+                    jobid      => $_->jobid
+                    });
+                $_->handle($handle);
+                $_;
+            } $driver->search('TheSchwartz::Job' => {
+                funcid        => $funcid,
+                @options
+                }, { limit => $FIND_JOB_BATCH_SIZE });
+        } else {
+            push @jobs, $driver->search('TheSchwartz::Job' => {
+                funcid        => $funcid,
+                @options
+                }, { limit => $FIND_JOB_BATCH_SIZE });
+        }
+    }
+    return @jobs;
+}
+
 sub find_job_with_coalescing_prefix {
     my TheSchwartz $client = shift;
     my ($funcname, $coval) = @_;
