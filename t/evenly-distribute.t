@@ -50,7 +50,7 @@ run_tests(5, sub {
     my $workdiff = abs($jobs1d - $jobs2d);
 
     my $uneven_percent = $workdiff / max($jobs1d, $jobs2d);
-    ok($uneven_percent < 0.40, "two dbs did about same amount of work");
+    ok($uneven_percent < 0.50, "two dbs did about same amount of work");
 
 
 });
