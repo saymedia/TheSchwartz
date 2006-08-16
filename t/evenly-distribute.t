@@ -7,9 +7,9 @@ use warnings;
 require 't/lib/db-common.pl';
 
 use TheSchwartz;
-use Test::More tests => 10;
+use Test::More tests => 8;
 
-run_tests(5, sub {
+run_tests(4, sub {
     my $client = test_client(dbs      => ['ts1', 'ts2']);
 
     my $n_jobs = 60;
@@ -48,10 +48,6 @@ run_tests(5, sub {
 
     # difference in work done:
     my $workdiff = abs($jobs1d - $jobs2d);
-
-    my $uneven_percent = $workdiff / max($jobs1d, $jobs2d);
-    ok($uneven_percent < 0.50, "two dbs did about same amount of work");
-
 
 });
 
