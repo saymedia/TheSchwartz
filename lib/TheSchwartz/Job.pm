@@ -140,36 +140,50 @@ sub completed {
     $job->driver->remove($job);
 }
 
-sub failed {
-    my $job = shift;
-    my($msg) = @_;
-    $job->debug("job failed: " . ($msg || "<no message>"));
+sub permanent_failure {
+    my ($job, $msg, $ex_status) = @_;
+    if ($job->did_something) {
+        $job->debug("can't call 'permanent_failure' on already finished job");
+        return 0;
+    }
+    $job->_failed($msg, $ex_status, 0);
+}
 
+sub failed {
+    my ($job, $msg, $ex_status) = @_;
     if ($job->did_something) {
         $job->debug("can't call 'failed' on already finished job");
         return 0;
     }
+
+    ## If this job class specifies that jobs should be retried,
+    ## update the run_after if necessary, but keep the job around.
+
+    my $class       = $job->funcname;
+    my $failures    = $job->failures + 1;    # include this one, since we haven't ->add_failure yet
+    my $max_retries = $class->max_retries($job);
+
+    $job->debug("job failed.  considering retry.  is max_retries of $max_retries >= failures of $failures?");
+    $job->_failed($msg, $ex_status, $max_retries >= $failures, $failures);
+}
+
+sub _failed {
+    my ($job, $msg, $exit_status, $_retry, $failures) = @_;
     $job->did_something(1);
+    $job->debug("job failed: " . ($msg || "<no message>"));
 
     ## Mark the failure in the error table.
     $job->add_failure($msg);
 
-    ## If this job class specifies that jobs should be retried,
-    ## update the run_after if necessary, but keep the job around.
-    my $class = $job->funcname;
-    my $failures = $job->failures;
-    my $max_retries = $class->max_retries;
-    $job->debug("considering retry.  is max_retries of $max_retries >= failures of $failures?");
-
-    if ($max_retries >= $failures) {
+    if ($_retry) {
+        my $class = $job->funcname;
         if (my $delay = $class->retry_delay($failures)) {
-            $job->run_after(time + $delay);
+            $job->run_after(time() + $delay);
         }
         $job->grabbed_until(0);
         $job->driver->update($job);
     } else {
-## TODO how to get the proper exit status?
-        $job->set_exit_status(1);
+        $job->set_exit_status($exit_status || 1);
         $job->driver->remove($job);
     }
 }
