@@ -93,7 +93,20 @@ sub add_failure {
     $error->error_time(time());
     $error->jobid($job->jobid);
     $error->message($msg || '');
-    $job->driver->insert($error);
+
+    my $driver = $job->driver;
+    $driver->insert($error);
+
+    # and let's lazily clean some errors while we're here.
+    my $unixtime = $driver->dbd->sql_for_unixtime;
+    my $maxage   = $TheSchwartz::T_ERRORS_MAX_AGE || (86400*7);
+    $driver->remove('TheSchwartz::Error', {
+        error_time => \ "< $unixtime - $maxage",
+    }, {
+        nofetch => 1,
+        limit   => $driver->dbd->can_delete_with_limit ? 1000 : undef,
+    });
+
     return $error;
 }
 
@@ -111,7 +124,25 @@ sub set_exit_status {
     $status->completion_time(time);
     $status->delete_after($status->completion_time + $secs);
     $status->status($exit);
-    $job->driver->insert($status);
+
+    my $driver = $job->driver;
+    $driver->insert($status);
+
+    # and let's lazily clean some exitstatus while we're here.  but
+    # rather than doing this query all the time, we do it 1/nth of the
+    # time, and deleting up to n*10 queries while we're at it.
+    # default n is 10% of the time, doing 100 deletes.
+    my $clean_thres = $TheSchwartz::T_EXITSTATUS_CLEAN_THRES || 0.10;
+    if (rand() < $clean_thres) {
+        my $unixtime = $driver->dbd->sql_for_unixtime;
+        $driver->remove('TheSchwartz::ExitStatus', {
+            delete_after => \ "< $unixtime",
+        }, {
+            nofetch => 1,
+            limit   => $driver->dbd->can_delete_with_limit ? int(1 / $clean_thres * 100) : undef,
+        });
+    }
+
     return $status;
 }
 
