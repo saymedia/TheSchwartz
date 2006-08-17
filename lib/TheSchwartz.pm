@@ -116,7 +116,12 @@ sub lookup_job {
 
 =head2
 
-    list_jobs(funcname, run_after, grabbed_until, coval, want_handle);
+    list_jobs(funcname      => 'jobname',
+              run_after     => time,
+              grabbed_until => time+3600,
+              coalesce      => 'foo%',
+              coalesce_op   => 'LIKE',
+              want_handle   => 1);
 
 =over 4
 
@@ -132,12 +137,12 @@ the value you want to check <= against on the run_after column
 
 the value you want to check <= against on the grabbed_until column
 
-=item op
+=item coalesce_op
 
 defaults to '=', set it to whatever you want to compare the coalesce field too
 if you want to search, you can use 'LIKE'
 
-=item coval
+=item coalesce
 
 coalesce value to search for, if you set op to 'LIKE' you can use '%' here,
 do remember that '%' searches anchored at the beginning of the string are
@@ -173,7 +178,13 @@ sub list_jobs {
         ## If the database is dead, skip it
         next if $client->is_database_dead($hashdsn);
         my $driver = $client->driver_for($hashdsn);
-        my $funcid = $client->funcname_to_id($driver, $hashdsn, $arg->{funcname});
+        my $funcid;
+        if (ref($arg->{funcname})) {
+            $funcid = [map { $client->funcname_to_id($driver, $hashdsn, $_) } @{$arg->{funcname}}];
+        } else {
+            $funcid = $client->funcname_to_id($driver, $hashdsn, $arg->{funcname});
+        }
+
         if ($arg->{want_handle}) {
             push @jobs, map {
                 my $handle = TheSchwartz::JobHandle->new({
