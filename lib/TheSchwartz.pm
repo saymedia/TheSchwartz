@@ -165,7 +165,7 @@ sub list_jobs {
     my $arg = shift;
     my @options;
     push @options, run_after     => { op => '<=', value => $arg->{run_after} }     if exists $arg->{run_after};
-    push @options, grabbed_until => { op => '<=', value => $arg->{grabbed_unti} } if exists $arg->{grabbed_until};
+    push @options, grabbed_until => { op => '<=', value => $arg->{grabbed_until} } if exists $arg->{grabbed_until};
     die "No funcname" unless exists $arg->{funcname};
 
     if ($arg->{coalesce}) {
