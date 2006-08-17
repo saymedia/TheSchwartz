@@ -33,7 +33,8 @@ sub run_tests_sqlite {
     # SQLite
   SKIP: {
       my $rv = eval "use DBD::SQLite; 1";
-      skip "SQLite not installed", $n if $@;
+      $rv = 0 if $ENV{SKIP_SQLITE};
+      skip "SQLite not installed", $n if !$rv;
       $code->();
   }
 }
