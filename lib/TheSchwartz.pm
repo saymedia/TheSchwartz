@@ -127,7 +127,7 @@ sub lookup_job {
 
 =item funcname
 
-the name of the function
+the name of the function or a reference to an array of functions
 
 =item run_after
 
