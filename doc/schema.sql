@@ -38,8 +38,10 @@ CREATE TABLE error (
 
 CREATE TABLE exitstatus (
         jobid           BIGINT UNSIGNED PRIMARY KEY NOT NULL,
+        funcid          INT UNSIGNED NOT NULL DEFAULT 0,
         status          SMALLINT UNSIGNED,
         completion_time INTEGER UNSIGNED,
         delete_after    INTEGER UNSIGNED,
+        INDEX (funcid),
         INDEX (delete_after)
 );

@@ -144,6 +144,7 @@ sub set_exit_status {
     my $secs = $class->keep_exit_status_for or return;
     my $status = TheSchwartz::ExitStatus->new;
     $status->jobid($job->jobid);
+    $status->funcid($job->funcid);
     $status->completion_time(time);
     $status->delete_after($status->completion_time + $secs);
     $status->status($exit);
