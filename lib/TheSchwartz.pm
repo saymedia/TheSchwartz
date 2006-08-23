@@ -150,7 +150,8 @@ much faster since it is can do a btree index lookup
 
 =item want_handle
 
-if you want all your jobs to be set up using a handle
+if you want all your jobs to be set up using a handle.  defaults to true.
+this option might be removed, as you should always have this on a Job object.
 
 =back
 
@@ -167,6 +168,9 @@ sub list_jobs {
     push @options, run_after     => { op => '<=', value => $arg->{run_after} }     if exists $arg->{run_after};
     push @options, grabbed_until => { op => '<=', value => $arg->{grabbed_until} } if exists $arg->{grabbed_until};
     die "No funcname" unless exists $arg->{funcname};
+
+    $arg->{want_handle} = 1 unless defined $arg->{want_handle};
+    my $limit = $arg->{limit} || $FIND_JOB_BATCH_SIZE;
 
     if ($arg->{coalesce}) {
         $arg->{coalesce_op} ||= '=';
@@ -197,12 +201,12 @@ sub list_jobs {
             } $driver->search('TheSchwartz::Job' => {
                 funcid        => $funcid,
                 @options
-                }, { limit => $FIND_JOB_BATCH_SIZE });
+                }, { limit => $limit });
         } else {
             push @jobs, $driver->search('TheSchwartz::Job' => {
                 funcid        => $funcid,
                 @options
-                }, { limit => $FIND_JOB_BATCH_SIZE });
+                }, { limit => $limit });
         }
     }
     return @jobs;
