@@ -7,9 +7,9 @@ use warnings;
 require 't/lib/db-common.pl';
 
 use TheSchwartz;
-use Test::More tests => 72;
+use Test::More tests => 80;
 
-run_tests(18, sub {
+run_tests(20, sub {
     foreach my $pfx ("", "testprefix_") {
 
         my $client = test_client(dbs      => ['ts1'],
@@ -69,6 +69,17 @@ run_tests(18, sub {
             my @handles = $client->insert_jobs($job1, $job2);
             is(scalar @handles, 2, "inserted two jobs");
             isa_ok $handles[0], 'TheSchwartz::JobHandle', "got job handle";
+        }
+
+        # inserting with a regular scalar arg
+        {
+            $job = TheSchwartz::Job->new(
+                                         funcname => 'feedmajor',
+                                         arg      => 'gruel',
+                                         );
+            ok($job);
+            $handle = $client->insert($job);
+            isa_ok $handle, 'TheSchwartz::JobHandle';
         }
 
         # inserting multiple with wrong method fails

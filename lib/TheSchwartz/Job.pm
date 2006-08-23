@@ -19,15 +19,21 @@ __PACKAGE__->install_properties({
            });
 
 __PACKAGE__->add_trigger(pre_save => sub {
-    my($job) = @_;
-    if (my $arg = $job->arg) {
+    my ($job) = @_;
+    my $arg = $job->arg
+        or return;
+    if (ref($arg)) {
         $job->arg(Storable::nfreeze($arg));
     }
 });
 
 __PACKAGE__->add_trigger(post_load => sub {
-    my($job) = @_;
-    if (my $arg = $job->arg) {
+    my ($job) = @_;
+    my $arg = $job->arg
+        or return;
+
+    my $magic = eval { Storable::read_magic($arg); };
+    if ($magic && $magic->{major} && $magic->{major} >= 2) {
         $job->arg(Storable::thaw($arg));
     }
 });
@@ -50,7 +56,13 @@ sub new {
         if (ref($arg) eq 'SCALAR') {
             $param{arg} = Storable::thaw($$arg);
         } elsif (!ref($arg)) {
-            $param{arg} = Storable::thaw($arg);
+            # if a regular scalar, test to see if it's a storable or not.
+            my $magic = eval { Storable::read_magic($arg); };
+            if ($magic && $magic->{major} && $magic->{major} >= 2) {
+                $param{arg} = Storable::thaw($arg);
+            } else {
+                $param{arg} = $arg;
+            }
         }
     }
     $param{run_after} ||= time;
