@@ -30,7 +30,7 @@ sub work_safely {
 
     my $cjob = $client->current_job;
     if ($@) {
-        # TODO: log $@ to syslog/etc
+        $job->debug("Eval failure: $@");
         $cjob->failed($@);
     }
     unless ($cjob->did_something) {
