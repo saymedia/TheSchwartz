@@ -78,6 +78,16 @@ sub funcname {
     if (@_) {
         $job->{__funcname} = shift;
     }
+
+    # lazily load,
+    if (!$job->{__funcname}) {
+        my $handle = $job->handle;
+        my $client = $handle->client;
+        my $driver = $client->driver_for($handle->dsn_hashed);
+        my $funcname = $client->funcid_to_name($driver, $handle->dsn_hashed, $job->funcid)
+            or die "Failed to lookup funcname of job $job";
+        return $job->{__funcname} = $funcname;
+    }
     return $job->{__funcname};
 }
 
