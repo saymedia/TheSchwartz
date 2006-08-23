@@ -30,6 +30,8 @@ CREATE TABLE error (
         error_time      INTEGER UNSIGNED NOT NULL,
         jobid           BIGINT UNSIGNED NOT NULL,
         message         VARCHAR(255) NOT NULL,
+        funcid          INT UNSIGNED NOT NULL DEFAULT 0,
+        INDEX (funcid, error_time),
         INDEX (error_time),
         INDEX (jobid)
 );

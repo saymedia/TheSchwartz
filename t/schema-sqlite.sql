@@ -20,7 +20,8 @@ CREATE TABLE job (
 CREATE TABLE error (
         error_time      INTEGER UNSIGNED NOT NULL,
         jobid           INTEGER NOT NULL,
-        message         VARCHAR(255) NOT NULL
+        message         VARCHAR(255) NOT NULL,
+        funcid          INT UNSIGNED NOT NULL DEFAULT 0
 );
 
 CREATE TABLE exitstatus (

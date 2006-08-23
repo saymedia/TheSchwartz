@@ -114,6 +114,7 @@ sub add_failure {
     my $error = TheSchwartz::Error->new;
     $error->error_time(time());
     $error->jobid($job->jobid);
+    $error->funcid($job->funcid);
     $error->message($msg || '');
 
     my $driver = $job->driver;
