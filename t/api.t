@@ -75,7 +75,7 @@ run_tests(20, sub {
         {
             $job = TheSchwartz::Job->new(
                                          funcname => 'feedmajor',
-                                         arg      => 'gruel',
+                                         arg      => "gruel that's longer than 11 bytes, for sure!",
                                          );
             ok($job);
             $handle = $client->insert($job);

@@ -6,9 +6,9 @@ use warnings;
 require 't/lib/db-common.pl';
 
 use TheSchwartz;
-use Test::More tests => 36;
+use Test::More tests => 52;
 
-run_tests(18, sub {
+run_tests(26, sub {
     my $client = test_client(dbs => ['ts1']);
 
     # insert a job
@@ -38,15 +38,19 @@ run_tests(18, sub {
     }
 
     # inserting and getting job w/ regular scalar arg
+    foreach my $scalar ("short_arg",
+                        "long arg more than 11 bytes long",
+                        "\x05scalar that begins with the 5 byte",
+                        )
     {
-        my $handle = $client->insert("Worker::Addition", 'my_arg');
+        my $handle = $client->insert("Worker::Addition", $scalar);
         isa_ok $handle, 'TheSchwartz::JobHandle', "inserted job";
 
         my $job = Worker::Addition->grab_job($client);
         isa_ok $job, 'TheSchwartz::Job';
         my $args = $job->arg;
         ok(!ref $args, "not a reference");  # not a reference
-        is($args, "my_arg", "got scalar arg back");
+        is($args, $scalar, "got correct scalar arg back");
     }
 
     # insert some more jobs

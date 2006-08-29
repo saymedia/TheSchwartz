@@ -31,11 +31,7 @@ __PACKAGE__->add_trigger(post_load => sub {
     my ($job) = @_;
     my $arg = $job->arg
         or return;
-
-    my $magic = eval { Storable::read_magic($arg); };
-    if ($magic && $magic->{major} && $magic->{major} >= 2) {
-        $job->arg(Storable::thaw($arg));
-    }
+    $job->arg(_cond_thaw($job->arg))
 });
 
 sub new_from_array {
@@ -57,12 +53,7 @@ sub new {
             $param{arg} = Storable::thaw($$arg);
         } elsif (!ref($arg)) {
             # if a regular scalar, test to see if it's a storable or not.
-            my $magic = eval { Storable::read_magic($arg); };
-            if ($magic && $magic->{major} && $magic->{major} >= 2) {
-                $param{arg} = Storable::thaw($arg);
-            } else {
-                $param{arg} = $arg;
-            }
+            $param{arg} = _cond_thaw($arg);
         }
     }
     $param{run_after} ||= time;
@@ -288,6 +279,22 @@ sub set_as_current {
     my $job = shift;
     my $client = $job->handle->client;
     $client->set_current_job($job);
+}
+
+sub _cond_thaw {
+    my $data = shift;
+
+    my $magic = eval { Storable::read_magic($data); };
+    if ($magic && $magic->{major} && $magic->{major} >= 2 && $magic->{major} <= 5) {
+        my $thawed = eval { Storable::thaw($data) };
+        if ($@) {
+            # false alarm... looked like a Storable, but wasn't.
+            return $data;
+        }
+        return $thawed;
+    } else {
+        return $data;
+    }
 }
 
 1;
