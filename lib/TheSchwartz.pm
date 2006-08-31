@@ -233,6 +233,7 @@ sub _find_job_with_coalescing {
         next if $client->is_database_dead($hashdsn);
 
         my $driver = $client->driver_for($hashdsn);
+        my $unixtime = $driver->dbd->sql_for_unixtime;
 
         my @jobs;
         eval {
@@ -242,11 +243,11 @@ sub _find_job_with_coalescing {
             ## 3. no one else is working on the job (grabbed_until is in
             ##    in the past).
             my $funcid = $client->funcname_to_id($driver, $hashdsn, $funcname);
-            my $now = time;
+
             @jobs = $driver->search('TheSchwartz::Job' => {
                     funcid        => $funcid,
-                    run_after     => { op => '<=', value => $now },
-                    grabbed_until => { op => '<=', value => $now },
+                    run_after     => \ "<= $unixtime",
+                    grabbed_until => \ "<= $unixtime",
                     coalesce      => { op => $op, value => $coval },
                 }, { limit => $FIND_JOB_BATCH_SIZE });
         };
@@ -271,6 +272,7 @@ sub find_job_for_workers {
         next if $client->is_database_dead($hashdsn);
 
         my $driver = $client->driver_for($hashdsn);
+        my $unixtime = $driver->dbd->sql_for_unixtime;
 
         my @jobs;
         eval {
@@ -281,11 +283,11 @@ sub find_job_for_workers {
             ##    in the past).
             my @ids = map { $client->funcname_to_id($driver, $hashdsn, $_) }
                       @$worker_classes;
-            my $now = time;
+
             @jobs = $driver->search('TheSchwartz::Job' => {
                     funcid        => \@ids,
-                    run_after     => { op => '<=', value => $now },
-                    grabbed_until => { op => '<=', value => $now },
+                    run_after     => \ "<= $unixtime",
+                    grabbed_until => \ "<= $unixtime",
                 }, { limit => $FIND_JOB_BATCH_SIZE });
         };
         if ($@) {
@@ -319,7 +321,12 @@ sub _grab_a_job {
         ## no one else takes it.
         my $worker_class = $job->funcname;
         my $old_grabbed_until = $job->grabbed_until;
-        $job->grabbed_until(time + ($worker_class->grab_for || 1));
+
+        my $unixtime_sql = $driver->dbd->sql_for_unixtime;
+        my $server_time = $driver->rw_handle->selectrow_array("SELECT $unixtime_sql")
+            or die "expected a server time";
+
+        $job->grabbed_until($server_time + ($worker_class->grab_for || 1));
 
         ## Update the job in the database, and end the transaction.
         if ($driver->update($job, { grabbed_until => $old_grabbed_until }) < 1) {
