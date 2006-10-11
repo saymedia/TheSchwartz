@@ -2,11 +2,7 @@
 
 package TheSchwartz;
 use strict;
-use fields qw( databases retry_seconds dead_dsns retry_at
-               funcmap_cache verbose
-               all_abilities current_abilities
-               current_job
-               );
+use fields qw( databases retry_seconds dead_dsns retry_at funcmap_cache verbose all_abilities current_abilities current_job );
 
 use Carp qw( croak );
 use Data::ObjectDriver::Errors;
@@ -18,9 +14,7 @@ use TheSchwartz::Job;
 use TheSchwartz::JobHandle;
 
 use constant RETRY_DEFAULT => 30;
-use constant OK_ERRORS => { map { $_ => 1 }
-    Data::ObjectDriver::Errors->UNIQUE_CONSTRAINT,
-};
+use constant OK_ERRORS => { map { $_ => 1 } Data::ObjectDriver::Errors->UNIQUE_CONSTRAINT, };
 
 # test harness hooks
 our $T_AFTER_GRAB_SELECT_BEFORE_UPDATE;
@@ -113,53 +107,6 @@ sub lookup_job {
     $job->funcname( $client->funcid_to_name($driver, $handle->dsn_hashed, $job->funcid) );
     return $job;
 }
-
-=head2
-
-    list_jobs(funcname      => 'jobname',
-              run_after     => time,
-              grabbed_until => time+3600,
-              coalesce      => 'foo%',
-              coalesce_op   => 'LIKE',
-              want_handle   => 1);
-
-=over 4
-
-=item funcname
-
-the name of the function or a reference to an array of functions
-
-=item run_after
-
-the value you want to check <= against on the run_after column
-
-=item grabbed_until
-
-the value you want to check <= against on the grabbed_until column
-
-=item coalesce_op
-
-defaults to '=', set it to whatever you want to compare the coalesce field too
-if you want to search, you can use 'LIKE'
-
-=item coalesce
-
-coalesce value to search for, if you set op to 'LIKE' you can use '%' here,
-do remember that '%' searches anchored at the beginning of the string are
-much faster since it is can do a btree index lookup
-
-=item want_handle
-
-if you want all your jobs to be set up using a handle.  defaults to true.
-this option might be removed, as you should always have this on a Job object.
-
-=back
-
-It is important to remember that this function doesnt lock anything, it just
-returns as many jobs as there is up to amount of databases * FIND_JOB_BATCH_SIZE
-
-=cut
-
 
 sub list_jobs {
     my TheSchwartz $client = shift;
@@ -605,3 +552,229 @@ sub set_current_job {
 }
 
 1;
+
+__END__
+
+=head1 NAME
+
+TheSchwartz - reliable job queue
+
+=head1 SYNOPSIS
+
+    # MyApp.pm
+    package MyApp;
+
+    sub work_asynchronously {
+        my %args = @_;
+
+        my $client = TheSchwartz->new( databases => $DATABASE_INFO );
+        $client->insert('MyWorker', \%args);
+    }
+
+
+    # myworker.pl
+    package MyWorker;
+    use base qw( TheSchwartz::Worker );
+
+    sub work {
+        my $class = shift;
+        my TheSchwartz::Job $job = shift;
+        
+        print "Workin' hard or hardly workin'? Hyuk!!\n";
+
+        $job->completed();
+    }
+
+    package main;
+    
+    my $client = TheSchwartz->new( databases => $DATABASE_INFO );
+    $client->can_do('MyWorker');
+    $client->work();
+
+
+=head1 DESCRIPTION
+
+TheSchwartz is a reliable job queue system. Your application can put jobs into
+the system, and your worker processes can pull jobs from the queue atomically
+to perform. Failed jobs can be left in the queue to retry later.
+
+I<Abilities> specify what jobs a worker process can perform. Abilities are the
+names of C<TheSchwartz::Worker> subclasses, as in the synopsis: the C<MyWorker>
+class name is used to specify that the worker script can perform the job. When
+using the C<TheSchwartz> client's C<work> functions, the class-ability duality
+is used to automatically dispatch to the proper class to do the actual work.
+
+TheSchwartz clients will also prefer to do jobs for unused abilities before
+reusing a particular ability, to avoid exhausting the supply of one kind of job
+while jobs of other types stack up.
+
+Some jobs with high setup times can be performed more efficiently if a group of
+related jobs are performed together. TheSchwartz offers a facility to
+I<coalesce> jobs into groups, which a properly constructed worker can find and
+perform at once. For example, if your worker were delivering email, you might
+store the domain name from the recipient's address as the coalescing value. The
+worker that grabs that job could then batch deliver all the mail for that
+domain once it connects to that domain's mail server.
+
+=head1 USAGE
+
+=head2 C<TheSchwartz-E<gt>new( %args )>
+
+Optional members of C<%args> are:
+
+=over 4
+
+=item * C<databases>
+
+An arrayref of database information. TheSchwartz workers can use multiple
+databases, such that if any of them are unavailable, the worker will search for
+appropriate jobs in the other databases automatically.
+
+Each member of the C<databases> value should be a hashref containing:
+
+=over 4
+
+=item * C<dsn>
+
+The database DSN for this database.
+
+=item * C<user>
+
+The username to use when connecting to this database.
+
+=item * C<pass>
+
+The password to use when connecting to this database.
+
+=back
+
+=item * C<verbose>
+
+A value indicating whether to log debug messages. If C<verbose> is a coderef,
+it is called to log debug messages. If C<verbose> is not a coderef but is some
+other true value, debug messages will be sent to C<STDERR>. Otherwise, debug
+messages will not be logged.
+
+=item * C<retry_seconds>
+
+The number of seconds after which to try reconnecting to apparently dead
+databases. If not given, TheSchwartz will retry connecting to databases after
+30 seconds.
+
+=back
+
+=head2 C<$client-E<gt>list_jobs( %args )>
+
+Returns a list of C<TheSchwartz::Job> objects matching the given arguments. The
+required members of C<%args> are:
+
+=over 4
+
+=item * C<funcname>
+
+the name of the function or a reference to an array of functions
+
+=item * C<run_after>
+
+the value you want to check <= against on the run_after column
+
+=item * C<grabbed_until>
+
+the value you want to check <= against on the grabbed_until column
+
+=item * C<coalesce_op>
+
+defaults to '=', set it to whatever you want to compare the coalesce field too
+if you want to search, you can use 'LIKE'
+
+=item * C<coalesce>
+
+coalesce value to search for, if you set op to 'LIKE' you can use '%' here,
+do remember that '%' searches anchored at the beginning of the string are
+much faster since it is can do a btree index lookup
+
+=item * C<want_handle>
+
+if you want all your jobs to be set up using a handle.  defaults to true.
+this option might be removed, as you should always have this on a Job object.
+
+=back
+
+It is important to remember that this function doesnt lock anything, it just
+returns as many jobs as there is up to amount of databases * FIND_JOB_BATCH_SIZE
+
+=head2 C<$client-E<gt>lookup_job( $handle_id )>
+
+Returns a C<TheSchwartz::Job> corresponding to the given handle ID.
+
+=head2 C<$client-E<gt>set_verbose( $verbose )>
+
+Sets the current logging function to C<$verbose> if it's a coderef. If not a
+coderef, enables debug logging to C<STDERR> if C<$verbose> is true; otherwise,
+disables logging.
+
+=head1 POSTING JOBS
+
+The methods of TheSchwartz clients used by applications posting jobs to the
+queue are:
+
+=head2 C<$client-E<gt>insert( $job )>
+
+Adds the given C<TheSchwartz::Job> to one of the client's job databases.
+
+=head2 C<$client-E<gt>insert( $funcname, $arg )>
+
+Adds a new job with funcname C<$funcname> and arguments C<$arg> to the queue.
+
+=head2 C<$client-E<gt>insert_jobs( @jobs )>
+
+Adds the given C<TheSchwartz::Job> objects to one of the client's job
+databases. All the given jobs are recorded in I<one> job database.
+
+=head1 WORKING
+
+The methods of TheSchwartz clients for use in worker processes are:
+
+=head2 C<$client-E<gt>can_do( $ability )>
+
+Adds C<$ability> to the list of abilities C<$client> is capable of performing.
+Subsequent calls to that client's C<work> methods will find jobs requiring the
+given ability.
+
+=head2 C<$client-E<gt>work_once()>
+
+Find and perform one job C<$client> can do.
+
+=head2 C<$client-E<gt>work_until_done()>
+
+Find and perform jobs C<$client> can do until no more such jobs are found in
+any of the client's job databases.
+
+=head2 C<$client-E<gt>work( [$delay] )>
+
+Find and perform any jobs C<$client> can do, forever. When no job is available,
+the working process will sleep for C<$delay> seconds (or 5, if not specified)
+before looking again.
+
+=head2 C<$client-E<gt>find_job_for_workers( [$abilities] )>
+
+Returns a C<TheSchwartz::JobHandle> object for a random job that the client can
+do. If specified, the job returned matches one of the abilities in the arrayref
+C<$abilities>, rather than C<$client>'s abilities.
+
+=head2 C<$client-E<gt>find_job_with_coalescing_value( $ability, $coval )>
+
+Returns a C<TheSchwartz::JobHandle> object for a random job for a worker
+capable of C<$ability> and with a coalescing value of C<$coval>.
+
+=head2 C<$client-E<gt>find_job_with_coalescing_prefix( $ability, $coval )>
+
+Returns a C<TheSchwartz::JobHandle> object for a random job for a worker
+capable of C<$ability> and with a coalescing value beginning with C<$coval>.
+
+Note the C<TheSchwartz> implementation of this function uses a C<LIKE> query to
+find matching jobs, with all the attendant performance implications for your
+job databases.
+
+=cut
+
