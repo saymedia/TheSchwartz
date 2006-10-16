@@ -19,6 +19,7 @@ my %modules = (
         ],
     },
     'TheSchwartz::Worker' => 1,
+    'TheSchwartz::Job'    => 1,
 );
 
 plan tests => scalar keys %modules;
