@@ -204,8 +204,8 @@ sub _find_job_with_coalescing {
             }
         }
 
-        my $handle = $client->_grab_a_job($hashdsn, @jobs);
-        return $handle if $handle;
+        my $job = $client->_grab_a_job($hashdsn, @jobs);
+        return $job if $job;
     }
 }
 
@@ -246,8 +246,8 @@ sub find_job_for_workers {
         # for test harness race condition testing
         $T_AFTER_GRAB_SELECT_BEFORE_UPDATE->() if $T_AFTER_GRAB_SELECT_BEFORE_UPDATE;
 
-        my $handle = $client->_grab_a_job($hashdsn, @jobs);
-        return $handle if $handle;
+        my $job = $client->_grab_a_job($hashdsn, @jobs);
+        return $job if $job;
     }
 }
 
@@ -758,19 +758,19 @@ before looking again.
 
 =head2 C<$client-E<gt>find_job_for_workers( [$abilities] )>
 
-Returns a C<TheSchwartz::JobHandle> object for a random job that the client can
-do. If specified, the job returned matches one of the abilities in the arrayref
+Returns a C<TheSchwartz::Job> for a random job that the client can do. If
+specified, the job returned matches one of the abilities in the arrayref
 C<$abilities>, rather than C<$client>'s abilities.
 
 =head2 C<$client-E<gt>find_job_with_coalescing_value( $ability, $coval )>
 
-Returns a C<TheSchwartz::JobHandle> object for a random job for a worker
-capable of C<$ability> and with a coalescing value of C<$coval>.
+Returns a C<TheSchwartz::Job> for a random job for a worker capable of
+C<$ability> and with a coalescing value of C<$coval>.
 
 =head2 C<$client-E<gt>find_job_with_coalescing_prefix( $ability, $coval )>
 
-Returns a C<TheSchwartz::JobHandle> object for a random job for a worker
-capable of C<$ability> and with a coalescing value beginning with C<$coval>.
+Returns a C<TheSchwartz::Job> for a random job for a worker capable of
+C<$ability> and with a coalescing value beginning with C<$coval>.
 
 Note the C<TheSchwartz> implementation of this function uses a C<LIKE> query to
 find matching jobs, with all the attendant performance implications for your
