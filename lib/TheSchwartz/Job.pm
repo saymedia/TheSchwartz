@@ -308,8 +308,15 @@ TheSchwartz::Job - jobs for the reliable job queue
 =head1 SYNOPSIS
 
     my $client = TheSchwartz->new( databases => $DATABASE_INFO );
-    
-    my $job = TheSchwartz::Job->new('MyWorker', foo => 'bar');
+
+    my $job = TheSchwartz::Job->new_from_array('MyWorker', foo => 'bar');
+    $client->dispatch_async($job);
+
+    $job = TheSchwartz::Job->new(
+        funcname => 'MyWorker',
+        uniqkey  => 7,
+        arg      => [ foo => 'bar' ],
+    );
     $client->dispatch_async($job);
 
 =head1 DESCRIPTION
