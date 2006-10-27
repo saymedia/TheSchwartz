@@ -16,6 +16,7 @@ Usage: schwartzmon <command> [OPTS]
 
 Possible commands:
      queues           View past-due job queue depths.  (default cmd)
+     errors           View errors.
 
 Global options:
    --job=<JOBNAME>    Only look at one specific job name.  Else all are considered.
@@ -45,7 +46,7 @@ USAGE
 }
 
 my $opt_help = 0;
-my ($opt_follow, $opt_last, $opt_inlast, $dsn);
+my ($opt_follow, $opt_last, $opt_inlast, $opt_func, $dsn);
 usage() unless GetOptions("job=s" => \$job,
                           "maxage=i" => \$max_age,
                           "maxcount=i" => \$max_count,
@@ -57,6 +58,7 @@ usage() unless GetOptions("job=s" => \$job,
                           "pass=s"     => \$pass,
                           "dsn=s"      => \$dsn,
                           "database=s" => \$dbname,
+                          "func=s"     => \$opt_func,
                           );
 usage() if $opt_help;
 
@@ -117,19 +119,28 @@ sub errors {
 
     $opt_last = 100 unless $opt_last || $opt_inlast;
 
-    my $sql;
-    if ($opt_last) {
-        $sql = "SELECT error_time, jobid, message FROM error ORDER BY error_time DESC LIMIT $opt_last";
-    } elsif ($opt_inlast) {
-        my $since = time() - $opt_inlast;
-        $sql = "SELECT error_time, jobid, message FROM error WHERE error_time >= $since ORDER BY error_time LIMIT 50000";
-    }
-
     my @rows;
     $dbs->foreach(sub {
         my $db = shift;
         my $dbh = $db->dbh
             or next;
+
+        my $extra_where = '';
+        if ($opt_func) {
+            my $funcid = $db->funcid_of_func($opt_func) || 0;
+            $extra_where = "AND funcid=$funcid";
+        }
+
+        my $sql;
+        if ($opt_last) {
+            $sql = "SELECT error_time, jobid, message FROM error WHERE 1=1 $extra_where " .
+                "ORDER BY error_time DESC LIMIT $opt_last";
+        } elsif ($opt_inlast) {
+            my $since = time() - $opt_inlast;
+            $sql = "SELECT error_time, jobid, message FROM error WHERE error_time >= $since $extra_where " .
+                "ORDER BY error_time LIMIT 50000";
+        }
+
 
         my $sth = $dbh->prepare($sql);
         $sth->execute;
@@ -160,7 +171,13 @@ sub follow_errors {
             my $lastmax = $notes->{lastmax} || time();
             my $seen    = $notes->{seen}    ||= {};
 
-            my $sth = $dbh->prepare("SELECT error_time, jobid, message FROM error WHERE error_time >= ? ORDER BY error_time");
+            my $extra_where = '';
+            if ($opt_func) {
+                my $funcid = $db->funcid_of_func($opt_func) || 0;
+                $extra_where = "AND funcid=$funcid";
+            }
+
+            my $sth = $dbh->prepare("SELECT error_time, jobid, message FROM error WHERE error_time >= ? $extra_where ORDER BY error_time");
             $sth->execute($lastmax);
             my @errors;
             push @errors, $_ while $_ = $sth->fetchrow_hashref;
@@ -231,3 +248,16 @@ sub dbh {
         DBI->connect($self->{dsn}, $self->{user}, $self->{pass})
 
 }
+
+sub funcid_of_func {
+    my ($self, $func) = @_;
+    my $notes = $self->notes;
+    return $notes->{"funcid_of_$func"} if exists $notes->{"funcid_of_$func"};
+
+    my $dbh = $self->dbh;
+    return $notes->{"funcid_of_$func"} =
+        $dbh->selectrow_array("SELECT funcid FROM funcmap WHERE funcname=?",
+                              undef, $func);
+}
+
+
