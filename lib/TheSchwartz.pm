@@ -101,8 +101,11 @@ sub lookup_job {
     my TheSchwartz $client = shift;
     my $handle = $client->handle_from_string(@_);
     my $driver = $client->driver_for($handle->dsn_hashed);
+
+    my $id = $handle->jobid;
     my $job = $driver->lookup('TheSchwartz::Job' => $handle->jobid)
         or return;
+
     $job->handle($handle);
     $job->funcname( $client->funcid_to_name($driver, $handle->dsn_hashed, $job->funcid) );
     return $job;
@@ -429,6 +432,14 @@ sub temporarily_remove_ability {
     }
 }
 
+sub work_on {
+    my TheSchwartz $client = shift;
+    my $hstr = shift;  # Handle string
+    my $job = $client->lookup_job($hstr) or
+        return 0;
+    return $client->work_once($job);
+}
+
 sub work {
     my TheSchwartz $client = shift;
     my($delay) = @_;
@@ -448,11 +459,12 @@ sub work_until_done {
 ## Returns true if it did something, false if no jobs were found
 sub work_once {
     my TheSchwartz $client = shift;
+    my $job = shift;  # optional specific job to work on
 
     ## Look for a job with our current set of abilities. Note that the
     ## list of current abilities may not be equal to the full set of
     ## abilities, to allow for even distribution between jobs.
-    my $job = $client->find_job_for_workers;
+    $job ||= $client->find_job_for_workers;
 
     ## If we didn't find anything, restore our full abilities, and try
     ## again.
