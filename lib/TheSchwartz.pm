@@ -2,7 +2,7 @@
 
 package TheSchwartz;
 use strict;
-use fields qw( databases retry_seconds dead_dsns retry_at funcmap_cache verbose all_abilities current_abilities current_job );
+use fields qw( databases retry_seconds dead_dsns retry_at funcmap_cache verbose all_abilities current_abilities current_job cached_drivers driver_cache_expiration );
 
 use Carp qw( croak );
 use Data::ObjectDriver::Errors;
@@ -34,7 +34,7 @@ sub new {
 
     $client->{retry_seconds} = delete $args{retry_seconds} || RETRY_DEFAULT;
     $client->set_verbose(delete $args{verbose});
-
+    $client->{driver_cache_expiration} = delete $args{driver_cache_expiration} || 0;
     croak "unknown options ", join(', ', keys %args) if keys %args;
 
     $client->hash_databases($databases);
@@ -64,13 +64,25 @@ sub hash_databases {
 sub driver_for {
     my TheSchwartz $client = shift;
     my($hashdsn) = @_;
-    my $db = $client->{databases}{$hashdsn};
-    return Data::ObjectDriver::Driver::DBI->new(
-            dsn      => $db->{dsn},
-            username => $db->{user},
-            password => $db->{pass},
-            ($db->{prefix} ? (prefix   => $db->{prefix}) : ()),
+    my $driver;
+    my $t = time;
+    my $cache_duration = $client->{driver_cache_expiration};
+    if ($cache_duration && $client->{cached_drivers}{$hashdsn}{create_ts} && $client->{cached_drivers}{$hashdsn}{create_ts} + $cache_duration > $t) {
+    	$driver = $client->{cached_drivers}{$hashdsn}{driver};
+    } else {
+        my $db = $client->{databases}{$hashdsn};
+        $driver = Data::ObjectDriver::Driver::DBI->new(
+                dsn      => $db->{dsn},
+                username => $db->{user},
+                password => $db->{pass},
+                ($db->{prefix} ? (prefix   => $db->{prefix}) : ()),
         );
+        if ($cache_duration) {
+            $client->{cached_drivers}{$hashdsn}{driver} = $driver;            
+            $client->{cached_drivers}{$hashdsn}{create_ts} = $t;                        
+        }
+    }
+    return $driver;
 }
 
 sub mark_database_as_dead {
