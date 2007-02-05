@@ -68,7 +68,7 @@ sub driver_for {
     my $t = time;
     my $cache_duration = $client->{driver_cache_expiration};
     if ($cache_duration && $client->{cached_drivers}{$hashdsn}{create_ts} && $client->{cached_drivers}{$hashdsn}{create_ts} + $cache_duration > $t) {
-    	$driver = $client->{cached_drivers}{$hashdsn}{driver};
+        $driver = $client->{cached_drivers}{$hashdsn}{driver};
     } else {
         my $db = $client->{databases}{$hashdsn};
         $driver = Data::ObjectDriver::Driver::DBI->new(
@@ -678,6 +678,14 @@ A value indicating whether to log debug messages. If C<verbose> is a coderef,
 it is called to log debug messages. If C<verbose> is not a coderef but is some
 other true value, debug messages will be sent to C<STDERR>. Otherwise, debug
 messages will not be logged.
+
+=item * C<driver_cache_expiration>
+
+Optional value to control how long database connections are cached for in seconds.
+By default, connections are not cached. To re-use the same database connection for
+five minutes, pass driver_cache_expiration => 300 to the constructor. Improves job
+throughput in cases where the work to process a job is small compared to the database
+connection set-up and tear-down time.
 
 =item * C<retry_seconds>
 
