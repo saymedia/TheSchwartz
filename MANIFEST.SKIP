@@ -1,6 +1,9 @@
+ts1.db
 ts2.db
 build-stamp
 install-stamp
+.shipit
+svn-commit.tmp
 
 # Avoid version control files.
 \bRCS\b
