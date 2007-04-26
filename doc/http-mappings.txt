@@ -1,0 +1,7 @@
+FUTURE:  provide HTTP server interface to all TheSchwartz commands.
+
+insert
+insert_jobs
+grab_job
+grab_job_from_handle
+

@@ -4,6 +4,8 @@ package TheSchwartz;
 use strict;
 use fields qw( databases retry_seconds dead_dsns retry_at funcmap_cache verbose all_abilities current_abilities current_job cached_drivers driver_cache_expiration );
 
+our $VERSION = "1.03";
+
 use Carp qw( croak );
 use Data::ObjectDriver::Errors;
 use Data::ObjectDriver::Driver::DBI;
