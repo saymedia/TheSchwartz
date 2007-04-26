@@ -810,5 +810,15 @@ Note the C<TheSchwartz> implementation of this function uses a C<LIKE> query to
 find matching jobs, with all the attendant performance implications for your
 job databases.
 
+=head1 COPYRIGHT, LICENSE & WARRANTY
+
+This software is Copyright 2007, Six Apart Ltd, cpan@sixapart.com. All
+rights reserved.
+
+TheSchwartz is free software; you may redistribute it and/or modify it
+under the same terms as Perl itself.
+
+TheScwhartz comes with no warranty of any kind.
+
 =cut
 
