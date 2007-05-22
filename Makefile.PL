@@ -8,7 +8,7 @@ version_from('lib/TheSchwartz.pm');
 author('Six Apart <cpan@sixapart.com>');
 license('perl');
 
-requires('Data::ObjectDriver' => '0.03');
+requires('Data::ObjectDriver' => '0.04');
 requires('Digest::MD5');
 requires('Storable');
 

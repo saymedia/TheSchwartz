@@ -9,7 +9,7 @@ require 't/lib/db-common.pl';
 use TheSchwartz;
 use Test::More tests => 80;
 
-run_tests(20, sub {
+run_tests(40, sub {
     foreach my $pfx ("", "testprefix_") {
 
         my $client = test_client(dbs      => ['ts1'],

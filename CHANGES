@@ -1,3 +1,9 @@
+1.04 (2007-05-22)
+
+    - no code changes, just packaging/dep/test fixes, as pointed out
+      by Dan Rench <drench@dren.ch>
+
 1.03
+
     - first packaged release, now that all SixApart products have been
       using this heavily for quite some time.  it's overdue.
