@@ -4,7 +4,7 @@ package TheSchwartz;
 use strict;
 use fields qw( databases retry_seconds dead_dsns retry_at funcmap_cache verbose all_abilities current_abilities current_job cached_drivers driver_cache_expiration );
 
-our $VERSION = "1.04";
+our $VERSION = "1.05";
 
 use Carp qw( croak );
 use Data::ObjectDriver::Errors;
@@ -268,6 +268,13 @@ sub find_job_for_workers {
     }
 }
 
+sub get_server_time {
+    my TheSchwartz $client = shift;
+    my($driver) = @_;
+    my $unixtime_sql = $driver->dbd->sql_for_unixtime;
+    return $driver->rw_handle->selectrow_array("SELECT $unixtime_sql");
+}
+
 sub _grab_a_job {
     my TheSchwartz $client = shift;
     my $hashdsn = shift;
@@ -286,8 +293,7 @@ sub _grab_a_job {
         my $worker_class = $job->funcname;
         my $old_grabbed_until = $job->grabbed_until;
 
-        my $unixtime_sql = $driver->dbd->sql_for_unixtime;
-        my $server_time = $driver->rw_handle->selectrow_array("SELECT $unixtime_sql")
+        my $server_time = $client->get_server_time($driver)
             or die "expected a server time";
 
         $job->grabbed_until($server_time + ($worker_class->grab_for || 1));
@@ -328,6 +334,10 @@ sub insert_job_to_driver {
         ## database has a separate cache, this needs to be calculated based
         ## on the hashed DSN. Also: this might fail, if the database is dead.
         $job->funcid( $client->funcname_to_id($driver, $hashdsn, $job->funcname) );
+
+        my $time = $client->get_server_time($driver)
+            or die "Can't get server time";
+        $job->insert_time($time);
 
         ## Now, insert the job. This also might fail.
         $driver->insert($job);
@@ -790,6 +800,10 @@ Find and perform any jobs C<$client> can do, forever. When no job is available,
 the working process will sleep for C<$delay> seconds (or 5, if not specified)
 before looking again.
 
+=head2 C<$client-E<gt>work_on($handle)>
+
+Given a job handle (a scalar string) I<$handle>, runs the job, then returns.
+
 =head2 C<$client-E<gt>find_job_for_workers( [$abilities] )>
 
 Returns a C<TheSchwartz::Job> for a random job that the client can do. If
@@ -809,6 +823,10 @@ C<$ability> and with a coalescing value beginning with C<$coval>.
 Note the C<TheSchwartz> implementation of this function uses a C<LIKE> query to
 find matching jobs, with all the attendant performance implications for your
 job databases.
+
+=head2 C<$client-E<gt>get_server_time( $driver )>
+
+Given an open driver I<$driver> to a database, gets the current server time from the database.
 
 =head1 COPYRIGHT, LICENSE & WARRANTY
 

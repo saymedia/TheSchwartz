@@ -1,3 +1,8 @@
+1.05
+
+    - Set TheSchwartz::Job::insert_time to current server time when
+      inserting a new job.
+
 1.04 (2007-05-22)
 
     - no code changes, just packaging/dep/test fixes, as pointed out

@@ -7,9 +7,9 @@ use warnings;
 require 't/lib/db-common.pl';
 
 use TheSchwartz;
-use Test::More tests => 80;
+use Test::More tests => 84;
 
-run_tests(40, sub {
+run_tests(42, sub {
     foreach my $pfx ("", "testprefix_") {
 
         my $client = test_client(dbs      => ['ts1'],
@@ -30,6 +30,7 @@ run_tests(40, sub {
         my $job = $handle->job;
         isa_ok $job, 'TheSchwartz::Job';
         is $job->funcname, 'feedmajor', 'handle->job gives us the right job';
+        cmp_ok $job->insert_time, '>', 0, 'insert_time is non-zero';
 
         # getting a handle object back
         my $hand2 = $client->handle_from_string($hstr);
