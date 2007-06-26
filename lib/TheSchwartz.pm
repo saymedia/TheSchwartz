@@ -335,9 +335,11 @@ sub insert_job_to_driver {
         ## on the hashed DSN. Also: this might fail, if the database is dead.
         $job->funcid( $client->funcname_to_id($driver, $hashdsn, $job->funcname) );
 
-        my $time = $client->get_server_time($driver)
-            or die "Can't get server time";
-        $job->insert_time($time);
+        ## This is sub-optimal because of clock skew, but something is
+        ## better than a NULL value. And currently, nothing in TheSchwartz
+        ## code itself uses insert_time. TODO: use server time, but without
+        ## having to do a roundtrip just to get the server time.
+        $job->insert_time(time);
 
         ## Now, insert the job. This also might fail.
         $driver->insert($job);
