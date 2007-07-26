@@ -1,0 +1,56 @@
+grab_job:  {
+   can_do: [@can_do],
+}
+  -> {
+     jobid,
+     job,
+     arg,
+     # failure_count?
+  }
+  (or)
+  -> Nothing
+
+
+insert_job: {
+  job: "foo",
+  arg: "lskdjflksdjflskdf",
+  uniqkey: "blah",
+  run_after: $unix_time,
+  coalesce: "to_foo",
+}
+  -> jobid
+
+
+# atomic insert multiple jobs:
+insert_jobs:
+   [ {...}, {...}, ]
+
+   -> @jobids
+
+mark_completed: {
+   jobid: 5,
+   replace_with: [@jobs],    #optional
+}
+   -> { handles => [@handles] }
+
+mark_failed: {
+   jobid: 5,
+   message: "error message",
+   exit_status: 6,
+   retry_in: 80,   # optional.  if not present, no retry.
+}
+
+get_failure_log: {
+   jobid: 6
+}
+  -> [ {time:2342342,exitstatus ... }, {....}, {...} ]
+
+get_status: {
+   jobid: 6,
+}
+  -> {
+       exitstatus: 0,
+     }
+
+
+

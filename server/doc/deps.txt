@@ -1,0 +1,25 @@
+TheSchwartz (itself)
+Data::ObjectDriver
+  DBI
+  Class::Accessor::Fast (libclass-accessor-perl)
+  Class::Trigger (libclass-trigger-perl)
+     libio-stringy-perl
+     Class::Data::Inheritable
+  List::Util
+  Test::Exception -- build_requires (libtest-exception-perl)
+
+Digest::MD5
+Storable
+
+Gearman::Server
+
+Danga::Socket
+Sys::Syscall
+
+JSON::Any
+JSON
+
+----
+Perl client:
+   Gearman::Client
+   String::CRC32

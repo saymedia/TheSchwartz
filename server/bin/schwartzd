@@ -1,0 +1,46 @@
+#!/usr/bin/perl
+
+use strict;
+use lib "$ENV{HOME}/hack/Data-ObjectDriver/lib";
+use lib "$ENV{HOME}/hack/TheSchwartz/lib";
+use lib "$ENV{HOME}/hack/gearman/api/perl/Gearman/lib";
+
+use Gearman::Worker;
+use TheSchwartz;
+use JSON::Any;
+
+my $j = JSON::Any->new;
+
+# FIXME: use embedded gearman server, and workers be child processes
+my $worker = Gearman::Worker->new;
+$worker->job_servers('127.0.0.1:7003');
+
+$worker->register_function("insert_job" => handler(\&insert_job));
+
+sub handler {
+    my ($code) = @_;
+    return sub {
+	my $job = shift;
+	my $arg = $job->arg;
+	my $jreq = eval { $j->jsonToObj($job->arg) };
+	unless ($jreq) {
+	    die "not a valid JSON request";
+	}
+	return $code->($job, $jreq);
+    };
+}
+
+sub insert_job {
+    my ($job, $json) = @_;
+    return "okay2";
+}
+
+$worker->register_function("add" => sub {
+    my $job = shift;
+    my $sum = 0;
+    my @nums = split(/\D/, $job->arg);
+    $sum += int($_) foreach @nums;
+    warn "sum of @nums = $sum\n";
+    return $sum;
+});
+$worker->work while 1;
