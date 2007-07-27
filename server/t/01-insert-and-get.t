@@ -22,6 +22,6 @@ my $cl = $srv->gearman_client;
 my $ret;
 
 print Dumper($cl->do_task("insert_job", json({
-    func => "foo",
+    funcname => "foo",
     arg => "fooarg",
 })));
