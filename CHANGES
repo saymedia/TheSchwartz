@@ -1,3 +1,7 @@
+    - include postgres schema in docs.  from Michael Zedeler
+      <michael@zedeler.dk>  Currently not tested in regression
+      tests, though, so not "officially" supported yet.
+
 1.05
 
     - Set TheSchwartz::Job::insert_time to current server time when
