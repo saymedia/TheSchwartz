@@ -3,6 +3,7 @@ CHANGES
 doc/http-mappings.txt
 doc/notes.txt
 doc/schema.sql
+doc/schema-postgres.sql
 extras/check_schwartz
 extras/TheSchwartz.spec
 inc/Module/AutoInstall.pm
