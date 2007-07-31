@@ -10,9 +10,16 @@ use JSON::Any;
 use lib "$ENV{HOME}/hack/Data-ObjectDriver/lib";
 use lib "$ENV{HOME}/hack/TheSchwartz/lib";
 use lib "$ENV{HOME}/hack/gearman/api/perl/Gearman/lib";
+use lib "$ENV{HOME}/cvs/Data-ObjectDriver/lib";
+use lib "$ENV{HOME}/cvs/TheSchwartz/lib";
+use lib "$ENV{HOME}/cvs/gearman/api/perl/Gearman/lib";
 
 sub json {
     return JSON::Any->objToJson(shift);
+}
+
+sub unjson {
+    return JSON::Any->json_to_obj(shift);
 }
 
 sub test_client {
