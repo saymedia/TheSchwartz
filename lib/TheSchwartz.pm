@@ -2,7 +2,7 @@
 
 package TheSchwartz;
 use strict;
-use fields qw( databases retry_seconds dead_dsns retry_at funcmap_cache verbose all_abilities current_abilities current_job cached_drivers driver_cache_expiration );
+use fields qw( databases retry_seconds dead_dsns retry_at funcmap_cache verbose all_abilities current_abilities current_job cached_drivers driver_cache_expiration scoreboard );
 
 our $VERSION = "1.05";
 
@@ -36,6 +36,7 @@ sub new {
 
     $client->{retry_seconds} = delete $args{retry_seconds} || RETRY_DEFAULT;
     $client->set_verbose(delete $args{verbose});
+    $client->set_scoreboard(delete $args{scoreboard});
     $client->{driver_cache_expiration} = delete $args{driver_cache_expiration} || 0;
     croak "unknown options ", join(', ', keys %args) if keys %args;
 
@@ -80,8 +81,8 @@ sub driver_for {
                 ($db->{prefix} ? (prefix   => $db->{prefix}) : ()),
         );
         if ($cache_duration) {
-            $client->{cached_drivers}{$hashdsn}{driver} = $driver;            
-            $client->{cached_drivers}{$hashdsn}{create_ts} = $t;                        
+            $client->{cached_drivers}{$hashdsn}{driver} = $driver;
+            $client->{cached_drivers}{$hashdsn}{create_ts} = $t;
         }
     }
     return $driver;
@@ -578,6 +579,108 @@ sub set_verbose {
     $client->{verbose} = $logger;
 }
 
+sub scoreboard {
+    my TheSchwartz $client = shift;
+
+    return $client->{scoreboard};
+}
+
+sub set_scoreboard {
+    my TheSchwartz $client = shift;
+    my ($dir) = @_;
+
+    return unless $dir;
+
+    # They want the scoreboard but don't care where it goes
+    if (($dir eq '1') or ($dir eq 'on')) {
+        # Find someplace in tmpfs to save this
+        foreach my $d (qw(/var/run /dev/shm)) {
+            $dir = $d;
+            last if -e $dir;
+        }
+    }
+
+    $dir .= '/theschwartz';
+    unless (-e $dir) {
+        mkdir($dir, 0755) or die "Can't create scoreboard directory '$dir': $!";
+    }
+
+    $client->{scoreboard} = $dir."/scoreboard.$$";
+}
+
+sub start_scoreboard {
+    my TheSchwartz $client = shift;
+
+    # Don't do anything if we're not configured to write to the scoreboard
+    my $scoreboard = $client->scoreboard;
+    return unless $scoreboard;
+
+    # Don't do anything of (for some reason) we don't have a current job
+    my $job = $client->current_job;
+    return unless $job;
+
+    my $class = $job->funcname;
+
+    open(SB, '>', $scoreboard)
+      or $job->debug("Could not write scoreboard '$scoreboard': $!");
+    print SB join("\n", ("pid=$$",
+                         'funcname='.($class||''),
+                         'started='.($job->grabbed_until-($class->grab_for||1)),
+                         'arg='._serialize_args($job->arg),
+                        )
+                 ), "\n";
+    close(SB);
+
+    return;
+}
+
+# Quick and dirty serializer.  Don't use Data::Dumper because we don't need to
+# recurse indefinitely and we want to truncate the output produced
+sub _serialize_args {
+    my ($args) = @_;
+
+    if (ref $args) {
+        if (ref $args eq 'HASH') {
+            return join ',',
+                   map { ($_||'').'='.substr($args->{$_}||'', 0, 200) }
+                   keys %$args;
+        } elsif (ref $args eq 'ARRAY') {
+            return join ',',
+                   map { substr($_||'', 0, 200) }
+                   @$args;
+        }
+    } else {
+        return $args;
+    }
+}
+
+sub end_scoreboard {
+    my TheSchwartz $client = shift;
+
+    # Don't do anything if we're not configured to write to the scoreboard
+    my $scoreboard = $client->scoreboard;
+    return unless $scoreboard;
+
+    my $job = $client->current_job;
+
+    open(SB, '>>', $scoreboard)
+      or $job->debug("Could not append scoreboard '$scoreboard': $!");
+    print SB "done=".time."\n";
+    close(SB);
+
+    return;
+}
+
+sub clean_scoreboard {
+    my TheSchwartz $client = shift;
+
+    # Don't do anything if we're not configured to write to the scoreboard
+    my $scoreboard = $client->scoreboard;
+    return unless $scoreboard;
+
+    unlink($scoreboard);
+}
+
 # current job being worked.  so if something dies, work_safely knows which to mark as dead.
 sub current_job {
     my TheSchwartz $client = shift;
@@ -587,6 +690,15 @@ sub current_job {
 sub set_current_job {
     my TheSchwartz $client = shift;
     $client->{current_job} = shift;
+}
+
+DESTROY {
+    foreach my $arg (@_) {
+        # Call 'clean_scoreboard' on TheSchwartz objects
+        if (ref($arg) and $arg->isa('TheSchwartz')) {
+            $arg->clean_scoreboard;
+        }
+    }
 }
 
 1;
@@ -617,14 +729,14 @@ TheSchwartz - reliable job queue
     sub work {
         my $class = shift;
         my TheSchwartz::Job $job = shift;
-        
+
         print "Workin' hard or hardly workin'? Hyuk!!\n";
 
         $job->completed();
     }
 
     package main;
-    
+
     my $client = TheSchwartz->new( databases => $DATABASE_INFO );
     $client->can_do('MyWorker');
     $client->work();

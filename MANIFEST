@@ -49,5 +49,6 @@ t/pod.t
 t/replace-with.t
 t/retry-delay.t
 t/schema-sqlite.sql
+t/scoreboard.t
 t/unique.t
 t/work-before-funcids-exist.t

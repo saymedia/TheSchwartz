@@ -1,0 +1,209 @@
+#!/usr/bin/perl -w
+
+=pod
+
+=head1 NAME
+
+thetop - A 'top' utility for the schwartz
+
+=head1 SYNOPSIS
+
+  thetop [--func FORMAT] [--arg FORMAT] [--sort ARGS] [--delay SECS] [--score-dir DIR]
+
+=head1 DESCRIPTION
+
+
+=cut
+
+#--------------------------------------#
+# Dependencies
+
+use strict;
+
+use Getopt::Long;
+use Term::Cap;
+use POSIX;
+
+#--------------------------------------#
+# Global Variables
+
+use vars qw( $OSPEED );
+
+BEGIN {
+    my $termios = POSIX::Termios->new;
+    $termios->getattr;
+    $OSPEED = $termios->getospeed || 9600;
+};
+
+our $TERM = Term::Cap->Tgetent({OSPEED=>$OSPEED});
+
+#--------------------------------------#
+# Main Program
+
+my ($score_dir, $delay, $func_col, @arg_col, $sort);
+
+GetOptions('score-dir=s' => \$score_dir,
+           'delay|d=s'   => \$delay,
+           'func=s'      => \$func_col,
+           'arg=s'       => \@arg_col,
+           'sort|s=s'    => \$sort,
+          );
+
+# Make sure we know where to find the scoreboard files
+unless ($score_dir) {
+    foreach my $d (qw(/var/run /dev/shm /tmp)) {
+        if (-e "$d/theschwartz") {
+            $score_dir = "$d/theschwartz";
+            last;
+        }
+    }
+
+    die "Can't find scoreboard directory.  Use '--score-dir'\n"
+      unless $score_dir;
+}
+
+# If we got some formatting instructions for the arg column, parse it out
+my %arg_col_by_func;
+if (@arg_col) {
+    foreach my $a (@arg_col) {
+        if ($a =~ /=/) {
+            my ($func, $fmt) = split('=', $a);
+            $arg_col_by_func{$func} = $fmt;
+        } else {
+            $arg_col_by_func{'__ALL__'} = $a;
+        }
+    }
+}
+
+# Make sure to give a reasonable default for delay
+$delay ||= 3;
+
+# Start reporting
+clr_screen();
+while (1) {
+    report($score_dir, $func_col, \%arg_col_by_func, $sort);
+    sleep($delay);
+    clr_screen();
+}
+
+################################################################################
+
+sub report {
+    my ($dir, $func_col, $arg_col_by_func, $sort) = @_;
+
+    # Find the files available
+    opendir(SD, $dir) or die "Can't read directory '$dir': $!\n";
+    my @files = map { $dir."/$_" } readdir(SD);
+    closedir(SD);
+
+    # Grab the data out of them
+    my @data;
+    foreach my $f (@files) {
+        next unless $f =~ /scoreboard\.[0-9]+$/;
+        open(SF, '<', $f) or die "Can't open score file '$f': $!\n";
+        my %dat = map { chomp; split('=') } <SF>;
+        close(SF);
+
+        $dat{arg_array} = [split(',', $dat{arg}||'')];
+        push @data, \%dat;
+    }
+
+    my $num = scalar(@data);
+    my $width = 80-17-$num;
+    printf("Workers: %d total %${width}s\n\n", $num, scalar localtime);
+    printf("% 5s % 20s % 2s % 7s % 41s\n", 'PID', 'FUNC', 'S', 'TIME', 'ARGS');
+    foreach my $d (sort { order_by($sort, $a, $b) } @data) {
+        my $func_str = fmt_func($d, $func_col);
+
+        printf("% 5s % 20s % 2s % 7s % 41s\n",
+               $d->{pid},
+               $func_str,
+               ($d->{done} ? 'S' : 'R'),
+               fmt_time($d),
+               fmt_arg($d, $arg_col_by_func, $func_str),
+              );
+    }
+}
+
+sub order_by {
+    my ($sort, $a, $b) = @_;
+
+    if ($sort) {
+
+    } else {
+        # Default to push running tasks to the top
+        return ($a->{done}||0) <=> ($b->{done}||0) ||
+               ($a->{started}||0) <=> ($b->{started}||0);
+    }
+}
+
+sub fmt_func {
+    my ($d, $fmt) = @_;
+    my $val = $d->{funcname};
+
+    if ($fmt) {
+        if ($fmt eq 'trim') {
+            $val =~ s/^.+:://g;
+        } else {
+            $val =~ /($fmt)/;
+            $val = $1;
+        }
+    }
+
+    return substr($val, 0, 20),
+}
+
+sub fmt_time {
+    my ($d) = @_;
+    my $secs = ($d->{done}||time) - $d->{started};
+
+    if ($secs < 60) {
+        return sprintf("%02d:%02d", 0, $secs);
+    } elsif ($secs < 3600) {
+        my $min = int($secs/60);
+        $secs = $secs%60;
+        return sprintf("%02d:%02d", $min, $secs);
+    } else {
+        my $hr  = int($secs/60/60);
+        my $min = int($secs/60%60);
+        $secs = $secs%60;
+        return sprintf("%d:%02d:%02d", $hr, $min, $secs);
+    }
+}
+
+## Format the arguments by interpreting the args as either a hash or an array
+## and printing out the appropriate element.
+
+sub fmt_arg {
+    my ($d, $arg_col_by_func, $func_str) = @_;
+    my $val = $d->{arg};
+    my $func_orig = $d->{funcname};
+
+    if ($arg_col_by_func) {
+        my $fmt = ($arg_col_by_func{$func_str}  ||
+                   $arg_col_by_func{$func_orig} ||
+                   $arg_col_by_func{'__ALL__'});
+        if ($fmt) {
+            my $arg_array = $d->{arg_array};
+
+            # If its a number treat the args as an array
+            if ($fmt =~ /^[0-9]+$/) {
+                $val = $arg_array->[$fmt];
+            }
+            # otherwise, treat the args as a hash
+            else {
+                # Compensate for odd numbers of args
+                push @$arg_array, undef if scalar(@$arg_array) % 2;
+
+                my %h = @$arg_array;
+                $val = $h{$fmt};
+            }
+        }
+    }
+
+    return substr($val||'', 0, 41),
+}
+
+sub clr_screen {
+    $TERM->Tputs('cl', 1, \*STDOUT);
+}
