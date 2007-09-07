@@ -1,6 +1,9 @@
+1.06 (2007-09-07)
+    - Code to allow a 'top' like view of runnin schwartz workers.
     - include postgres schema in docs.  from Michael Zedeler
       <michael@zedeler.dk>  Currently not tested in regression
       tests, though, so not "officially" supported yet.
+    - start of work on gearman-based schwartz server.
 
 1.05
 
