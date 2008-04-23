@@ -922,6 +922,10 @@ Adds a new job with funcname C<$funcname> and arguments C<$arg> to the queue.
 Adds the given C<TheSchwartz::Job> objects to one of the client's job
 databases. All the given jobs are recorded in I<one> job database.
 
+=head2 C<$client-E<gt>set_prioritize( $prioritize )>
+
+Set the C<prioritize> value as described in the constructor.
+
 =head1 WORKING
 
 The methods of TheSchwartz clients for use in worker processes are:
