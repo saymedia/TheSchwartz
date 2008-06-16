@@ -74,7 +74,8 @@ sub driver_for {
     if ($cache_duration && $client->{cached_drivers}{$hashdsn}{create_ts} && $client->{cached_drivers}{$hashdsn}{create_ts} + $cache_duration > $t) {
         $driver = $client->{cached_drivers}{$hashdsn}{driver};
     } else {
-        my $db = $client->{databases}{$hashdsn};
+        my $db = $client->{databases}{$hashdsn}
+            or croak "Ouch, I don't know about a database whose hash is $hashdsn";
         $driver = Data::ObjectDriver::Driver::DBI->new(
                 dsn      => $db->{dsn},
                 username => $db->{user},

@@ -7,7 +7,7 @@ use warnings;
 require 't/lib/db-common.pl';
 
 use TheSchwartz;
-use Test::More tests => 84;
+use Test::More tests => 108;
 
 run_tests(42, sub {
     foreach my $pfx ("", "testprefix_") {
@@ -81,6 +81,18 @@ run_tests(42, sub {
             ok($job);
             $handle = $client->insert($job);
             isa_ok $handle, 'TheSchwartz::JobHandle';
+            
+            my $same = $client->lookup_job($handle->as_string);
+            ok $same;
+            isa_ok $same, 'TheSchwartz::Job';
+            is $same->handle->as_string, $handle->as_string;
+            
+        }
+        
+        ## Just test that handles for unknown database croak with an explicit message
+        {
+            eval { $client->lookup_job( ("6a" x 16) ."-666") };
+            ok $@ && unlike($@, qr/No Driver/) && like($@, qr/database.*hash/);
         }
 
         # inserting multiple with wrong method fails
