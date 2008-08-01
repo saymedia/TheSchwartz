@@ -1,3 +1,8 @@
+1.07 (2008-07-31)
+    - bchoate: Updates to support optional prioritization of jobs.
+    - ykerherve: Croak with a nice message id a driver cannot be
+      found for a handle
+
 1.06 (2007-09-07)
     - Code to allow a 'top' like view of runnin schwartz workers.
     - include postgres schema in docs.  from Michael Zedeler
