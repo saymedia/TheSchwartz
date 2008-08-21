@@ -489,9 +489,9 @@ sub grab_and_work_on {
     my $hstr = shift;  # Handle string
     my $job = $client->lookup_job($hstr) or
         return 0;
-    my $hashdsn = $job->handle->dsn_hashed;
     
     ## check that the job is grabbable
+    my $hashdsn = $job->handle->dsn_hashed;
     my $driver = $client->driver_for($hashdsn);
     my $current_time = $client->get_server_time($driver);
     return 0 if $current_time < $job->grabbed_until;
