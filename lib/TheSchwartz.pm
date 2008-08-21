@@ -484,6 +484,25 @@ sub work_on {
     return $client->work_once($job);
 }
 
+sub grab_and_work_on {
+    my TheSchwartz $client = shift;
+    my $hstr = shift;  # Handle string
+    my $job = $client->lookup_job($hstr) or
+        return 0;
+    my $hashdsn = $job->handle->dsn_hashed;
+    
+    ## check that the job is grabbable
+    my $driver = $client->driver_for($hashdsn);
+    my $current_time = $client->get_server_time($driver);
+    return 0 if $current_time < $job->grabbed_until;
+    
+    ## grab the job the usual way
+    $job = $client->_grab_a_job($hashdsn, $job)
+        or return 0;
+
+    return $client->work_once($job);
+}
+
 sub work {
     my TheSchwartz $client = shift;
     my($delay) = @_;
@@ -955,6 +974,15 @@ before looking again.
 =head2 C<$client-E<gt>work_on($handle)>
 
 Given a job handle (a scalar string) I<$handle>, runs the job, then returns.
+
+=head2 C<$client-E<gt>grab_and_work_on($handle)>
+
+Similar to L<$client-E<gt>work_on($handle)>, except that the job will be grabbed
+before being run. It guarantees that only one worker will work on it (at least
+in the C<grab_for> interval).
+
+Returns false if the worker couldn't grab the job, and true if the worker worked
+on it.
 
 =head2 C<$client-E<gt>find_job_for_workers( [$abilities] )>
 
