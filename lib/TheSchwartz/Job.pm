@@ -309,7 +309,7 @@ TheSchwartz::Job - jobs for the reliable job queue
 
     my $client = TheSchwartz->new( databases => $DATABASE_INFO );
 
-    my $job = TheSchwartz::Job->new_from_array('MyWorker', foo => 'bar');
+    my $job = TheSchwartz::Job->new_from_array('MyWorker', [ foo => 'bar' ]);
     $client->insert($job);
 
     $job = TheSchwartz::Job->new(
