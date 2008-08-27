@@ -1,15 +1,11 @@
-CHANGES
-MANIFEST			This list of files
-MANIFEST.SKIP
-META.yml
-Makefile.PL
 bin/schwartzmon
+CHANGES
 doc/http-mappings.txt
 doc/notes.txt
 doc/schema-postgres.sql
 doc/schema.sql
-extras/TheSchwartz.spec
 extras/check_schwartz
+extras/TheSchwartz.spec
 extras/thetop
 inc/Module/AutoInstall.pm
 inc/Module/Install.pm
@@ -30,6 +26,10 @@ lib/TheSchwartz/FuncMap.pm
 lib/TheSchwartz/Job.pm
 lib/TheSchwartz/JobHandle.pm
 lib/TheSchwartz/Worker.pm
+Makefile.PL
+MANIFEST			This list of files
+MANIFEST.SKIP
+META.yml
 server/bin/schwartzd
 server/doc/deps.txt
 server/doc/protocol.txt
@@ -47,12 +47,11 @@ t/evenly-distribute.t
 t/fail-working-multiple.t
 t/funcid.t
 t/grab-race.t
+t/grab_and_work_on.t
 t/high-funcid-starvation.t
 t/insert-and-do.t
 t/lib/db-common.pl
 t/parallel-workers.t
-t/pod-coverage.t
-t/pod.t
 t/priority.t
 t/replace-with.t
 t/retry-delay.t
@@ -61,3 +60,5 @@ t/scoreboard.t
 t/server-time.t
 t/unique.t
 t/work-before-funcids-exist.t
+xt/pod-coverage.t
+xt/pod.t
