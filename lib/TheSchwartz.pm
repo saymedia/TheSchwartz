@@ -1008,6 +1008,43 @@ job databases.
 
 Given an open driver I<$driver> to a database, gets the current server time from the database.
 
+=head1 THE SCOREBOARD
+
+The scoreboards can be used to monitor what the TheSchwartz::Worker subclasses are
+currently working on.  Once the scoreboard has been enabled in the workers with
+C<set_scoreboard> method the C<thetop> utility (shipped with TheSchwartz distribuition
+in the C<extras> directory) can be used to list all current jobs being worked on.
+
+=head2 C<< $client->set_scoreboard( $dir ) >>
+
+Enables the scoreboard.  Setting this to C<1> or C<on> will cause TheSchwartz to create
+a scoreboard file in a location it determines is optimal.
+
+Passing in any other option sets the directory the TheSchwartz scoreboard directory should
+be created in.  For example, if you set this to C</tmp> then this would create a directory
+called C</tmp/theschwartz> and a scoreboard file C</tmp/theschwartz/scoreboard.pid> in it
+(where pid is the current process pid.) 
+
+=head2 C<< $client->scoreboard() >>
+
+Returns the path to the current scoreboard file.
+
+=head2 C<< $client->start_scoreboard() >>
+
+Writes the current job information to the scoreboard file (called by the worker
+in work_safely before it actually starts working)
+
+=head2 C<< $client->end_scoreboard() >>
+
+Appends the current job duration to the end of the scoreboard file (called by
+the worker in work_safely once work has been completed)
+
+=head2 C<< $client->clean_scoreboard() >>
+
+Removes the scoreboard file (but not the scoreboard directory.)  Automatically
+called by TheSchwartz during object destruction (i.e. when the instance goes
+out of scope)
+
 =head1 COPYRIGHT, LICENSE & WARRANTY
 
 This software is Copyright 2007, Six Apart Ltd, cpan@sixapart.com. All
