@@ -38,7 +38,8 @@ run_tests(10, sub {
         my $job    = Worker::Addition->grab_job($client);
 
         my $rv = eval { Worker::Addition->work_safely($job); };
-        ok(length($@) == 0, 'Finished job with out error');
+        ok(length($@) == 0, 'Finished job with out error')
+            or diag($@);
 
         unless (ok(-e $sb_file, "Scoreboard file exists")) {
             return;
