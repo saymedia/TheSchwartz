@@ -52,7 +52,21 @@ sub test_client {
         setup_dbs({ prefix => $pfx }, $dbs);
     }
 
-    return TheSchwartz->new(databases => [
+    if ($ENV{USE_DBH_FOR_TEST}) {
+        my @tmp;
+        for (@$dbs) { eval {
+            my $dsn    = dsn_for($_);  
+            my $dbh    = DBI->connect( $dsn, "root", "", {
+                RaiseError => 1,
+                PrintError => 0,
+                AutoCommit => 1,
+            } ) or die $DBI::errstr;
+            my $driver =  Data::ObjectDriver::Driver::DBI->new( dbh => $dbh); 
+            push @tmp, { driver => $driver, prefix => $pfx };
+        } }
+        return TheSchwartz->new(databases => [@tmp]); 
+    } else {
+        return TheSchwartz->new(databases => [
                                           map { {
                                               dsn  => dsn_for($_),
                                               user => "root",
@@ -60,6 +74,7 @@ sub test_client {
                                               prefix => $pfx,
                                           } } @$dbs
                                           ]);
+    }
 }
 
 sub has_innodb {

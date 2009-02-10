@@ -9,6 +9,7 @@ use Test::More tests => 20;
 
 use TheSchwartz;
 use File::Spec qw();
+use File::Temp qw(tempdir);
 # create a tmp directory with a unique name.  This stops
 # us conflicting with any other runs of this process and means
 # we tidy up after ourselves
@@ -20,7 +21,7 @@ run_tests(10, sub {
 
     setup_dbs({prefix => $pfx}, $dbs);
 
-    my $client = TheSchwartz->new(scoreboard => $tmpdir,
+    my $client = TheSchwartz->new(scoreboard => $tempdir,
                                   databases => [
                                           map { {
                                               dsn  => dsn_for($_),

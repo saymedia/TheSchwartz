@@ -60,7 +60,17 @@ sub hash_databases {
     my TheSchwartz $client = shift;
     my($list) = @_;
     for my $ref (@$list) {
-        my $full = join '|', map { $ref->{$_} || '' } qw( dsn user pass );
+        my $var;
+        my @parts;
+        if ($ref->{driver}) {
+            my $dbh  = tied(%{$ref->{driver}->dbh});
+            my $dsn  = "dbd:".$dbh->{Driver}->{Name}.":".$dbh->{Name};
+            my $user = $dbh->{Username} || ''; 
+            @parts   = ($dsn, $user);   
+        } else {
+            @parts   = map { $ref->{$_} || '' } qw(dsn user);
+        }
+        my $full = join '|', @parts;
         $client->{databases}{ md5_hex($full) } = $ref;
     }
 }
@@ -76,12 +86,17 @@ sub driver_for {
     } else {
         my $db = $client->{databases}{$hashdsn}
             or croak "Ouch, I don't know about a database whose hash is $hashdsn";
-        $driver = Data::ObjectDriver::Driver::DBI->new(
-                dsn      => $db->{dsn},
-                username => $db->{user},
-                password => $db->{pass},
-                ($db->{prefix} ? (prefix   => $db->{prefix}) : ()),
-        );
+        if ($db->{driver}) {
+            $driver = $db->{driver};
+        } else {
+            $driver = Data::ObjectDriver::Driver::DBI->new(
+                        dsn      => $db->{dsn},
+                        username => $db->{user},
+                        password => $db->{pass},
+                      );
+        }
+        $driver->prefix($db->{prefix}) if exists $db->{prefix};
+
         if ($cache_duration) {
             $client->{cached_drivers}{$hashdsn}{driver} = $driver;
             $client->{cached_drivers}{$hashdsn}{create_ts} = $t;
@@ -827,7 +842,7 @@ An arrayref of database information. TheSchwartz workers can use multiple
 databases, such that if any of them are unavailable, the worker will search for
 appropriate jobs in the other databases automatically.
 
-Each member of the C<databases> value should be a hashref containing:
+Each member of the C<databases> value should be a hashref containing either:
 
 =over 4
 
@@ -842,6 +857,18 @@ The username to use when connecting to this database.
 =item * C<pass>
 
 The password to use when connecting to this database.
+
+=back
+
+or
+
+=over 4
+
+=item * C<driver>
+
+A C<Data::ObjectDriver::Driver::DBI> object.
+
+See note below.
 
 =back
 
@@ -1044,6 +1071,22 @@ the worker in work_safely once work has been completed)
 Removes the scoreboard file (but not the scoreboard directory.)  Automatically
 called by TheSchwartz during object destruction (i.e. when the instance goes
 out of scope)
+
+=head1 PASSING IN AN EXISTING DRIVER
+
+You can pass in a existing C<Data::Object::Driver::DBI> object which also allows you
+to reuse exist Database handles like so:
+
+        my $dbh = DBI->connect( $dsn, "root", "", {
+                RaiseError => 1,
+                PrintError => 0,
+                AutoCommit => 1,
+            } ) or die $DBI::errstr;
+        my $driver = Data::ObjectDriver::Driver::DBI->new( dbh => $dbh);
+        return TheSchwartz->new(databases => [{ driver => $driver }]);
+
+B<Note>: it's important that the C<RaiseError> and C<AutoCommit> flags are 
+set on the handle for various bits of functionality to work.
 
 =head1 COPYRIGHT, LICENSE & WARRANTY
 
