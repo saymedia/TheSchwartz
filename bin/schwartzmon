@@ -10,6 +10,20 @@ my $job = "";
 my $max_age = 0;
 my $max_count = 0;
 
+=head1 NAME
+
+schwartzmon - monitor The Schwartz
+
+=head1 USAGE
+
+Type
+
+    schwartzmon --help
+
+to get full usage.
+
+=cut
+
 sub usage {
     die <<USAGE;
 Usage: schwartzmon <command> [OPTS]
@@ -260,4 +274,16 @@ sub funcid_of_func {
                               undef, $func);
 }
 
+
+=head1 COPYRIGHT, LICENSE & WARRANTY
+
+This software is Copyright 2007, 2008 Six Apart Ltd, cpan@sixapart.com. All
+rights reserved.
+
+TheSchwartz is free software; you may redistribute it and/or modify it
+under the same terms as Perl itself.
+
+TheScwhartz comes with no warranty of any kind.
+
+=cut
 
