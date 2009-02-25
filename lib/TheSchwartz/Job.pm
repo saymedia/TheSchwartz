@@ -370,8 +370,9 @@ reset to C<0> when is released due to failure to complete the job.
 
 =head2 C<priority>
 
-An integer value to specify the priority of the job to be executed. See
-C<prioritize> property of L<TheSchwartz> for details.
+An integer value to specify the priority of the job to be executed; larger
+numbers mean higher priority. See C<prioritize> property of L<TheSchwartz> for
+details.
 
 =head2 C<coalesce>
 
