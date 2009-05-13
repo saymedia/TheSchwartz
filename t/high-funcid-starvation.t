@@ -7,7 +7,7 @@ use warnings;
 require 't/lib/db-common.pl';
 
 use TheSchwartz;
-use Test::More tests => 8;
+use Test::More tests => 12;
 
 run_tests(4, sub {
     my $client = test_client(dbs      => ['ts1']);
@@ -18,7 +18,7 @@ run_tests(4, sub {
         $client->insert("Worker::Job2") or die;
     }
 
-    my $db1 = DBI->connect(dsn_for("ts1"), 'root', '');
+    my $db1 = DBI->connect(dsn_for("ts1"), $ENV{TS_DB_USER}, $ENV{TS_DB_PASS});
     die unless $db1;
 
     my $jobs1 = $db1->selectrow_array("SELECT COUNT(*) FROM job WHERE funcid=1");

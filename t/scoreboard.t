@@ -5,7 +5,7 @@ use warnings;
 
 require 't/lib/db-common.pl';
 
-use Test::More tests => 20;
+use Test::More tests => 30;
 
 use TheSchwartz;
 use File::Spec qw();
@@ -25,8 +25,8 @@ run_tests(10, sub {
                                   databases => [
                                           map { {
                                               dsn  => dsn_for($_),
-                                              user => "root",
-                                              pass => "",
+                                              user => $ENV{TS_DB_USER},
+                                              pass => $ENV{TS_DB_PASS},
                                               prefix => $pfx,
                                           } } @$dbs
                                           ]);

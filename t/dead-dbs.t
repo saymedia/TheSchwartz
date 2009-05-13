@@ -7,7 +7,7 @@ use warnings;
 require 't/lib/db-common.pl';
 
 use TheSchwartz;
-use Test::More tests => 4;
+use Test::More tests => 6;
 
 run_tests(2, sub {
     setup_dbs('ts1');

@@ -6,7 +6,7 @@ use warnings;
 require 't/lib/db-common.pl';
 
 use TheSchwartz;
-use Test::More tests => 20;
+use Test::More tests => 30;
 
 # for testing:
 $TheSchwartz::T_EXITSTATUS_CLEAN_THRES = 1;  # delete 100% of the time, not 10% of the time
@@ -14,7 +14,7 @@ $TheSchwartz::T_ERRORS_MAX_AGE = 2;          # keep errors for 3 seconds, not 1 
 
 run_tests(10, sub {
     my $client = test_client(dbs => ['ts1']);
-    my $dbh = DBI->connect(dsn_for("ts1"), 'root', '');
+    my $dbh = DBI->connect(dsn_for("ts1"), $ENV{TS_DB_USER}, $ENV{TS_DB_PASS});
     $client->can_do("Worker::Fail");
     $client->can_do("Worker::Complete");
 

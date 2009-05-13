@@ -6,7 +6,7 @@ use warnings;
 require 't/lib/db-common.pl';
 
 use TheSchwartz;
-use Test::More tests => 62;
+use Test::More tests => 31*3;
 
 our $record_expected;
 
@@ -57,6 +57,7 @@ sub set_client { $client = $_[1]; }
 sub work {
     my ($class, $job) = @_;
     my $priority = $job->priority;
+
     ok((!defined($main::record_expected) && (!defined($priority)))
         || ($priority == $main::record_expected), "priority matches expected priority");
     $job->completed;

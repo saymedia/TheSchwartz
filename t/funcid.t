@@ -7,7 +7,7 @@ use warnings;
 require 't/lib/db-common.pl';
 
 use TheSchwartz;
-use Test::More tests => 16;
+use Test::More tests => 24;
 
 run_tests(8, sub {
 

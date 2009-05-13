@@ -6,7 +6,7 @@ use warnings;
 require 't/lib/db-common.pl';
 
 use TheSchwartz;
-use Test::More tests => 28;
+use Test::More tests => 14 * 3;
 
 run_tests(14, sub {
     my $client = test_client(dbs => ['ts1']);

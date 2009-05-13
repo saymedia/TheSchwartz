@@ -8,6 +8,7 @@ sub run_tests {
     my ($n, $code) = @_;
 
     run_tests_mysql($n, $code);
+    run_tests_pgsql($n, $code);
     run_tests_sqlite($n, $code);
 }
 
@@ -20,9 +21,21 @@ sub run_tests_mysql {
     my ($n, $code, $innodb) = @_;
   SKIP: {
       local $ENV{USE_MYSQL} = 1;
+      local $ENV{TS_DB_USER} ||= 'root';
       my $dbh = eval { mysql_dbh() };
       skip "MySQL not accessible as root on localhost", $n if $@;
       skip "InnoDB not available on localhost's MySQL", $n if $innodb && ! has_innodb($dbh);
+      $code->();
+  }
+}
+
+sub run_tests_pgsql {
+    my ($n, $code) = @_;
+  SKIP: {
+      local $ENV{USE_PGSQL} = 1;
+      local $ENV{TS_DB_USER} ||= 'postgres';
+      my $dbh = eval { pgsql_dbh() };
+      skip "PgSQL not accessible as root on localhost", $n if $@;
       $code->();
   }
 }
@@ -69,8 +82,8 @@ sub test_client {
         return TheSchwartz->new(databases => [
                                           map { {
                                               dsn  => dsn_for($_),
-                                              user => "root",
-                                              pass => "",
+                                              user => $ENV{TS_DB_USER},
+                                              pass => $ENV{TS_DB_PASS},
                                               prefix => $pfx,
                                           } } @$dbs
                                           ]);
@@ -91,6 +104,7 @@ sub has_innodb {
 
 sub schema_file {
     return "doc/schema.sql" if $ENV{USE_MYSQL};
+    return "doc/schema-postgres.sql" if $ENV{USE_PGSQL};
     return "t/schema-sqlite.sql";
 }
 
@@ -108,6 +122,9 @@ sub dsn_for {
     my $dbname = shift;
     if ($ENV{USE_MYSQL}) {
         return 'dbi:mysql:' . mysql_dbname($dbname);
+    }
+    elsif ($ENV{USE_PGSQL}) {
+        return 'dbi:Pg:dbname=' . mysql_dbname($dbname);
     } else {
         return 'dbi:SQLite:dbname=' . db_filename($dbname);
     }
@@ -129,12 +146,16 @@ sub setup_dbs {
         if ($ENV{USE_MYSQL}) {
             create_mysql_db(mysql_dbname($dbname));
         }
+        elsif ($ENV{USE_PGSQL}) {
+            create_pgsql_db(mysql_dbname($dbname));
+        }
         my $dbh = DBI->connect(dsn_for($dbname),
-            'root', '', { RaiseError => 1, PrintError => 0 })
+            $ENV{TS_DB_USER}, $ENV{TS_DB_PASS}, { RaiseError => 1, PrintError => 0 })
             or die "Couldn't connect: $!\n";
         my @sql = load_sql($schema);
         for my $sql (@sql) {
-            $sql =~ s!^\s*create\s+table\s+(\w+)!CREATE TABLE ${pfx}$1!i;
+            $sql =~ s!^\s*create\s+table\s+(\w+)!CREATE TABLE ${pfx}$1!mi;
+            $sql =~ s!^\s*(create.*?index)\s+(\w+)\s+on\s+(\w+)!$1 $2 ON ${pfx}$3!i;
             $sql .= " ENGINE=INNODB\n" if $ENV{USE_MYSQL};
             $dbh->do($sql);
         }
@@ -147,6 +168,15 @@ sub mysql_dbh {
         or die "Couldn't connect to database";
 }
 
+my $pg_dbh;
+
+sub pgsql_dbh {
+    return $pg_dbh if $pg_dbh;
+    $pg_dbh ||=
+        DBI->connect("DBI:Pg:dbname=postgres", "postgres", "", { RaiseError => 1 })
+            or die "Couldn't connect to database";
+}
+
 sub create_mysql_db {
     my $dbname = shift;
     mysql_dbh()->do("CREATE DATABASE $dbname");
@@ -157,11 +187,24 @@ sub drop_mysql_db {
     mysql_dbh()->do("DROP DATABASE IF EXISTS $dbname");
 }
 
+sub create_pgsql_db {
+    my $dbname = shift;
+    pgsql_dbh()->do("CREATE DATABASE $dbname");
+}
+
+sub drop_pgsql_db {
+    my $dbname = shift;
+    undef $pg_dbh;
+    eval { pgsql_dbh()->do("DROP DATABASE IF EXISTS $dbname") };
+}
+
 sub teardown_dbs {
     my(@dbs) = @_;
     for my $db (@dbs) {
         if ($ENV{USE_MYSQL}) {
             drop_mysql_db(mysql_dbname($db));
+        } elsif ($ENV{USE_PGSQL}) {
+            drop_pgsql_db(mysql_dbname($db));
         } else {
             my $file = db_filename($db);
             next unless -e $file;

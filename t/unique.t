@@ -7,7 +7,7 @@ use warnings;
 require 't/lib/db-common.pl';
 
 use TheSchwartz;
-use Test::More tests => 12;
+use Test::More tests => 18;
 
 #use Data::ObjectDriver;
 #$Data::ObjectDriver::DEBUG = 1;
