@@ -29,13 +29,14 @@ sub work_safely {
     eval {
         $res = $class->work($job);
     };
+    my $errstr = $@;
 
     my $cjob = $client->current_job;
-    if ($@) {
-        $job->debug("Eval failure: $@");
+    if ($errstr) {
+        $job->debug("Eval failure: $errstr");
         $cjob->failed($@);
     }
-    unless ($cjob->did_something) {
+    if (! $cjob->was_declined && ! $cjob->did_something) {
         $cjob->failed('Job did not explicitly complete, fail, or get replaced');
     }
 

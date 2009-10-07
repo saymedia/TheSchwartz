@@ -161,6 +161,15 @@ sub set_exit_status {
     return $status;
 }
 
+sub was_declined {
+    my $job = shift;
+    if (@_) {
+        $job->{__was_declined} = shift;
+    }
+    return $job->{__was_declined};
+}
+
+
 sub did_something {
     my $job = shift;
     if (@_) {
@@ -193,6 +202,19 @@ sub permanent_failure {
         return 0;
     }
     $job->_failed($msg, $ex_status, 0);
+}
+
+sub declined {
+    my ($job) = @_;
+    if ($job->did_something) {
+        $job->debug("can't call 'declined' on already finished job");
+        return 0;
+    }
+    $job->debug("job declined.  retry will be considered after lease is up at " . $job->grabbed_until);
+
+    $job->was_declined(1);
+
+    # we do nothing regarding the job's status
 }
 
 sub failed {
@@ -443,6 +465,11 @@ Records the exit status of the given job as C<$status>.
 Returns whether the given job has been completed or failed since it was created
 or loaded, setting whether it has to C<$value> first, if specified.
 
+=head2 C<$job-E<gt>was_declined()>
+
+Sets (if given an argument) and returns the value of the was_declined flag for
+a job object. See also C<$job-E<gt>declined()>
+
 =head2 C<$job-E<gt>debug( $msg )>
 
 Sends the given message to the job's C<TheSchwartz> client as debug output.
@@ -484,6 +511,12 @@ Records that the worker performing this job failed to complete it, as in
 C<failed()>, but that the job should I<not> be reattempted, no matter how many
 times the job has been attempted before. The job's exit status is thus recorded
 as C<$exit_status> (or C<1>), and the job is removed from the queue.
+
+=head2 C<$job-E<gt>declined()>
+
+Report that the job has been declined for handling at this time, which means that
+the job will be retried after the next grabbed_until interval, and does not count
+against the max_retries count.
 
 =head2 C<$job-E<gt>replace_with( @jobs )>
 

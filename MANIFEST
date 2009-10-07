@@ -42,6 +42,7 @@ t/cleanup.t
 t/client-time-unsync.t
 t/coalesce.t
 t/dead-dbs.t
+t/declined.t
 t/empty-db.t
 t/evenly-distribute.t
 t/fail-working-multiple.t
