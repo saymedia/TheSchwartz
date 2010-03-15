@@ -4,3 +4,6 @@ steps = FindVersion, ChangeVersion, CheckChangeLog, DistTest, Commit, Tag, MakeD
 svn.tagpattern = %v
 
 # CheckChangeLog.files = ChangeLog, MyProj.CHANGES
+git.push_to = origin
+
+UploadCPAN.user = sixapart

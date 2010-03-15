@@ -28,3 +28,4 @@ svn-commit.tmp
 \.old$
 \#$
 \b\.#
+\.git/

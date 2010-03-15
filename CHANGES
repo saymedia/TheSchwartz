@@ -1,9 +1,9 @@
+1.10 (2010-03-15)
     - Add $job->declined method for workers to be able to decline handling
       a job at this time.
-
-1.08 ()
     - Added $client->grab_and_work_on($handle) to securely work on a job 
-      you know the handle of. Yann Kerherve (yannk@cpan.org) 
+      you know the handle of. Yann Kerherve (yannk@cpan.org)
+    - Fixed docs and tests (miyagawa, athomason, simonw)
     
 1.07 (2008-07-31)
     - bchoate: Updates to support optional prioritization of jobs.
