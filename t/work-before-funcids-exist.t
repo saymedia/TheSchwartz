@@ -21,9 +21,9 @@ run_tests(2, sub {
     $client->work_until_done;
 
     ok(! $handle->is_pending, "job is done");
+
+    teardown_dbs('ts1');
 });
-
-
 
 ############################################################################
 package Worker::Dummy;

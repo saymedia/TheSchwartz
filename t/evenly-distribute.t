@@ -49,6 +49,7 @@ run_tests(4, sub {
     # difference in work done:
     my $workdiff = abs($jobs1d - $jobs2d);
 
+    teardown_dbs('ts1', 'ts2');
 });
 
 sub max { $_[0] > $_[1] ? $_[0] : $_[1] }
