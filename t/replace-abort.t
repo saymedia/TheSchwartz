@@ -38,7 +38,7 @@ run_tests_pgsql(13, sub {
     is(
         $dbh->selectrow_array("SELECT COUNT(*) FROM job WHERE uniqkey = '1';"),
         1,
-        'Job 1 gepostet',
+        'Job 1 posted',
     );
 
 
@@ -48,7 +48,7 @@ run_tests_pgsql(13, sub {
     is(
         $dbh->selectrow_array("SELECT COUNT(*) FROM job WHERE uniqkey = '1';"),
         0,
-        'Job 1 abgearbeitet',
+        'Job 1 done',
     );
 
 # Job 2
@@ -61,7 +61,7 @@ run_tests_pgsql(13, sub {
     is(
         $dbh->selectrow_array("SELECT COUNT(*) FROM job WHERE uniqkey = '2';"),
         1,
-        'Job 2 gepostet',
+        'Job 2 posted',
     );
 
 # Job 2
@@ -70,12 +70,12 @@ run_tests_pgsql(13, sub {
     is(
         $dbh->selectrow_array("SELECT COUNT(*) FROM job WHERE uniqkey = '2';"),
         0,
-        'Job 2 abgearbeitet',
+        'Job 2 done',
     );
     is(
         $dbh->selectrow_array("SELECT COUNT(*) FROM job WHERE uniqkey = '3';"),
         1,
-        'Job 2 ersetzt durch Job 3',
+        'Job 2 replaced with Job 3',
     );
 
 # Job 4
@@ -88,7 +88,7 @@ run_tests_pgsql(13, sub {
     is(
         $dbh->selectrow_array("SELECT COUNT(*) FROM job WHERE uniqkey = '4';"),
         1,
-        'Job 4 gepostet',
+        'Job 4 posted',
     );
 
 # Job 4
@@ -97,12 +97,12 @@ run_tests_pgsql(13, sub {
     is(
         $dbh->selectrow_array("SELECT COUNT(*) FROM job WHERE uniqkey = '4';"),
         1,
-        'Job 4 abgebrochen',
+        'Job 4 canceled',
     );
     is(
         $dbh->selectrow_array("SELECT COUNT(*) FROM job WHERE uniqkey = '3';"),
         1,
-        'Job 4 nicht durch Job 3 ersetzt',
+        'Job 4 not replaced with Job 3',
     );
 
 # Job 3
@@ -111,7 +111,7 @@ run_tests_pgsql(13, sub {
     is(
         $dbh->selectrow_array("SELECT COUNT(*) FROM job WHERE uniqkey = '3';"),
         0,
-        'Job 3 abgearbeitet',
+        'Job 3 done',
     );
 
 # cleanup job.run_after & retry_at, so we dont have to wait
@@ -125,12 +125,12 @@ run_tests_pgsql(13, sub {
     is(
         $dbh->selectrow_array("SELECT COUNT(*) FROM job WHERE uniqkey = '4';"),
         0,
-        'Job 4 abgearbeitet',
+        'Job 4 done',
     );
     is(
         $dbh->selectrow_array("SELECT COUNT(*) FROM job WHERE uniqkey = '3';"),
         1,
-        'Job 4 ersetzt durch Job 3',
+        'Job 4 replaced with Job 3',
     );
 
 # Job 5
@@ -139,7 +139,7 @@ run_tests_pgsql(13, sub {
     is(
         $dbh->selectrow_array("SELECT COUNT(*) FROM job WHERE uniqkey = '3';"),
         0,
-        'Job 3 erneut abgearbeitet',
+        'Job 3 done - again',
     );
 });
 
