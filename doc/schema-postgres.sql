@@ -23,7 +23,7 @@ CREATE TABLE funcmap (
 );
 
 CREATE TABLE job (
-        jobid           SERIAL,
+        jobid           BIGSERIAL,
         funcid          INT NOT NULL,
         arg             BYTEA,
         uniqkey         VARCHAR(255) NULL,
@@ -50,7 +50,7 @@ CREATE TABLE note (
 CREATE TABLE error (
         error_time      INTEGER NOT NULL,
         jobid           BIGINT NOT NULL,
-        message         VARCHAR(255) NOT NULL,
+        message         TEXT NOT NULL,
         funcid          INT NOT NULL DEFAULT 0
 );
 
