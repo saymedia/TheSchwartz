@@ -281,7 +281,8 @@ sub replace_with {
 
     ## Insert the new jobs.
     for my $j (@jobs) {
-        $client->insert_job_to_driver($j, $driver, $hashdsn);
+        $client->insert_job_to_driver($j, $driver, $hashdsn)
+            or die($@); # rethrow, otherwise job get completed!
     }
 
     ## Mark the original job as completed successfully.

@@ -10,7 +10,7 @@ use warnings;
 require 't/lib/db-common.pl';
 
 use TheSchwartz;
-use Test::More tests => 13;
+use Test::More tests => 15;
 
 run_tests_pgsql(13, sub {
     my $client1 = test_client(dbs => ['ts1']);
@@ -94,6 +94,16 @@ run_tests_pgsql(13, sub {
 # Job 4
     $client2->work_once;
 
+    is(
+        $dbh->selectrow_array("SELECT COUNT(*) FROM error LEFT JOIN job USING(jobid) WHERE uniqkey = '4';"),
+        1,
+        'Job 4 throw error',
+    );
+    like(
+        $dbh->selectrow_array("SELECT message FROM error LEFT JOIN job USING(jobid) WHERE uniqkey = '4';"),
+        qr/job_funcid_uniqkey/,
+        'Job 4 throw uniqkey',
+    );
     is(
         $dbh->selectrow_array("SELECT COUNT(*) FROM job WHERE uniqkey = '4';"),
         1,
