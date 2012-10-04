@@ -20,10 +20,11 @@ run_tests(31, sub {
     $TheSchwartz::FIND_JOB_BATCH_SIZE = 1;
 
     for (1..10) {
+        # Postgres uses ORDER BY priority NULLS FIRST when DESC is used
         my $job = TheSchwartz::Job->new(
                                         funcname => 'Worker::PriorityTest',
                                         arg      => { num => $_ },
-                                        ( $_ == 1 ? () : ( priority => $_ ) ),
+                                        ( !$ENV{USE_PGSQL} && $_ == 1 ? () : ( priority => $_ ) ),
                                         );
         my $h = $client->insert($job);
         ok($h, "inserted job (priority $_)");
@@ -35,7 +36,8 @@ run_tests(31, sub {
     Worker::PriorityTest->set_client($client);
 
     for (1..10) {
-        $record_expected = 11 - $_ == 1 ? undef : 11 - $_;
+        # Postgres uses ORDER BY priority NULLS FIRST when DESC is used
+        $record_expected = !$ENV{USE_PGSQL} && 11 - $_ == 1 ? undef : 11 - $_;
         my $rv = eval { $client->work_once; };
         ok($rv, "did stuff");
     }

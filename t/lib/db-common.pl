@@ -195,7 +195,12 @@ sub create_pgsql_db {
 sub drop_pgsql_db {
     my $dbname = shift;
     undef $pg_dbh;
-    eval { pgsql_dbh()->do("DROP DATABASE IF EXISTS $dbname") };
+    eval {
+        pgsql_dbh();
+        $pg_dbh->do("DROP DATABASE IF EXISTS $dbname");
+        $pg_dbh->disconnect;
+    };
+    undef $pg_dbh;
 }
 
 sub teardown_dbs {

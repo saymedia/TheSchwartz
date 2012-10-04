@@ -1,6 +1,11 @@
 # $Id$
 # -*-perl-*-
 
+# TODO very bad test! Using signals is NOT SAVE! On one testsystem the test
+# blocked in 25%, because of 2 or more USR1 sended and only once the callback
+# get executed!
+use Test::More skip_all => 'bad blocking test';
+
 use strict;
 use warnings;
 
@@ -10,6 +15,7 @@ use TheSchwartz;
 use Test::More tests => 2;
 
 # how we keep track of if job was done twice:  signal from children back up to us
+
 my $work_count = 0;
 my $lost_race  = 0;
 $SIG{USR1} = sub { $work_count++; };

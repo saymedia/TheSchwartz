@@ -34,6 +34,9 @@ run_tests(6, sub {
     $handle = $client->insert($job);
     ok(! $handle, 'no handle');
 
+    # pg failes and marks the database as dead
+    $client->{retry_at} = {};
+
     # insert same uniqkey, but different func
     $job = TheSchwartz::Job->new(
                                  funcname => 'scratch',
