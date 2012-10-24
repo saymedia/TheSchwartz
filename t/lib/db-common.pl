@@ -195,7 +195,22 @@ sub create_pgsql_db {
 sub drop_pgsql_db {
     my $dbname = shift;
     undef $pg_dbh;
-    eval { pgsql_dbh()->do("DROP DATABASE IF EXISTS $dbname") };
+    # Force all connections to terminate (for pg >= 8.4)
+    eval {
+        pgsql_dbh();
+        local $pg_dbh->{RaiseError};
+        local $pg_dbh->{PrintError};
+        $pg_dbh->do("SELECT pg_terminate_backend(procpid) FROM pg_stat_activity WHERE datname = '$dbname' AND current_query NOT LIKE '%pg_terminate_backend%'");
+        $pg_dbh->disconnect;
+    };
+    undef $pg_dbh;
+    # Remove Database
+    eval {
+        pgsql_dbh();
+        $pg_dbh->do("DROP DATABASE IF EXISTS $dbname");
+        $pg_dbh->disconnect;
+    };
+    undef $pg_dbh;
 }
 
 sub teardown_dbs {
